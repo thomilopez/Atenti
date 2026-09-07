@@ -18,7 +18,7 @@
 
 ```bash
 # 1. Ingresar al directorio del proyecto
-cd C:\Users\agula\.gemini\antigravity\scratch\atenti
+cd C:\Users\tu_user\.gemini\antigravity\scratch\atenti
 
 # 2. Iniciar el servidor de desarrollo de Expo
 npm start
