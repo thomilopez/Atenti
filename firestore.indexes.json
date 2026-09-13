@@ -1,0 +1,34 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "denuncias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "claveOperacion", "order": "ASCENDING" },
+        { "fieldPath": "_serverTimestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "denuncias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estadoActual", "order": "ASCENDING" },
+        { "fieldPath": "_serverTimestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "objetivos",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "valorNormalizado", "order": "ASCENDING" }]
+    },
+    {
+      "collectionGroup": "historialEstado",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "denunciaId", "order": "ASCENDING" },
+        { "fieldPath": "fecha", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
