@@ -9,12 +9,14 @@ import {
   collection,
   doc,
   setDoc,
+  getDoc,
   getDocs,
   query,
   where,
   orderBy,
   serverTimestamp,
   writeBatch,
+  runTransaction,
 } from 'firebase/firestore';
 import { Platform } from 'react-native';
 import {
@@ -403,7 +405,6 @@ for (const seed of inMemoryIncidents) {
 async function nextTrackingSequence(): Promise<number> {
   try {
     const counterRef = doc(db, 'atenti_counters', 'seguimiento');
-    const { getDoc, runTransaction } = await import('firebase/firestore');
     // Intento de lectura rápida; si no existe o falla, uso memoria.
     try {
       const snap = await getDoc(counterRef);

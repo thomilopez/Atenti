@@ -85,6 +85,8 @@ export interface IncidentReport {
 export interface ReportDraft {
   id: string;
   savedAt: number;
+  /** RG-06: el borrador retiene la misma clave del intento lógico (E2/E3). */
+  claveOperacion: string;
   category: IncidentCategory;
   identifierType: IdentifierType;
   identifierValue: string;
