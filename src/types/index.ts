@@ -61,7 +61,13 @@ export interface AuditMetadata {
 
 export interface IncidentReport {
   id: string;
-  trackingCode: string; // ej: AT-2026-XXXX
+  trackingCode: string; // ej: AT-2026-XXXXXX (I-01 único)
+  /** RG-06: clave idempotente generada por el cliente para el intento lógico. */
+  claveOperacion?: string;
+  /** Etapa 3 §4: estado canónico. `status` se conserva por compatibilidad. */
+  estadoActual?: 'RECIBIDA' | 'PUBLICADA' | 'EN_DISPUTA' | 'RESUELTA';
+  /** Etapa 3 §3: índice de agrupación comunitaria. */
+  valorNormalizado?: string;
   identifierType: IdentifierType;
   identifierValue: string;
   title: string;
