@@ -3,7 +3,6 @@
  * Persistencia atómica de reportes con metadatos de auditoría (UID, IP, timestamp)
  */
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getFirestore,
   collection,
@@ -17,6 +16,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { Platform } from 'react-native';
+import { db } from '../config/firebase';
 import {
   AuditMetadata,
   EvidenceItem,
@@ -26,20 +26,6 @@ import {
   LocationData,
 } from '../types';
 import { calculateRG07Score } from './credibility';
-
-// Configuración de Firebase (Puede sobreescribirse con variables de entorno)
-const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDemoAtentiApiKey2026ArgentinaMVP',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'atenti-argentina-mvp.firebaseapp.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'atenti-argentina-mvp',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'atenti-argentina-mvp.appspot.com',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '928374829103',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:928374829103:web:7823abce9012837',
-};
-
-// Inicialización de la App Firebase
-export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app);
 
 // Semilla inicial con incidentes geolocalizados en Argentina (CABA, Córdoba, Rosario, Mendoza)
 export const INITIAL_SEED_INCIDENTS: IncidentReport[] = [
