@@ -13,6 +13,7 @@ import { RootStackParamList } from '../types';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { VeracityBar } from '../components/VeracityBar';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { LEGAL_INDEMNITY_EXTRACT } from '../services/legalAudit';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P8_Confirmation'>;
 
@@ -58,6 +59,15 @@ export const P8_ConfirmationScreen: React.FC<Props> = ({ route, navigation }) =>
               height={18}
               showPercentageText={true}
             />
+          </View>
+
+          {/* Extracto de Indemnidad Legal (T06 / RNF3 / Etapa 2 §8) */}
+          <View style={styles.indemnityCard}>
+            <View style={styles.indemnityHeader}>
+              <Ionicons name="shield-checkmark" size={14} color="#0F172A" />
+              <Text style={styles.indemnityTitle}>Indemnidad Legal</Text>
+            </View>
+            <Text style={styles.indemnityText}>{LEGAL_INDEMNITY_EXTRACT}</Text>
           </View>
         </View>
 
@@ -176,5 +186,33 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  indemnityCard: {
+    marginTop: 20,
+    marginHorizontal: 8,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  indemnityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  indemnityTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  indemnityText: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#64748B',
+    textAlign: 'justify',
   },
 });

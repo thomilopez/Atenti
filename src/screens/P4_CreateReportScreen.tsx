@@ -14,6 +14,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentCategory, RootStackParamList } from '../types';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useReportFlow } from '../context/ReportFlowContext';
+import { useAuth } from '../context/AuthContext';
 import { BottomNavBar } from '../components/BottomNavBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
@@ -29,6 +30,7 @@ const CATEGORIES: IncidentCategory[] = [
 const IDENTIFIER_TYPES: IdentifierType[] = ['Alias', 'CBU', 'Tel', 'Local'];
 
 export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) => {
+  const { isAuthenticated } = useAuth();
   const {
     category,
     setCategory,
@@ -45,6 +47,17 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
 
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [identifierDropdownOpen, setIdentifierDropdownOpen] = useState(false);
+
+  // RG-01: Bloqueo estricto si el usuario U0 no está autenticado
+  useEffect(() => {
+    if (!isAuthenticated) {
+      Alert.alert(
+        'Identificación Requerida (RG-01)',
+        'Para emitir una denuncia necesitas autenticarte y aceptar la Declaración Jurada.'
+      );
+      navigation.replace('P3_LegalAuth', { returnTo: 'P4_CreateReport' });
+    }
+  }, [isAuthenticated, navigation]);
 
   useEffect(() => {
     if (route.params?.prefilledIdentifier) {
