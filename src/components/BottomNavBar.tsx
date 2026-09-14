@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface BottomNavBarProps {
   activeTab?: 'home' | 'map' | 'report' | 'profile';
@@ -11,6 +12,15 @@ interface BottomNavBarProps {
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { isAuthenticated } = useAuth();
+
+  const handleReportPress = () => {
+    if (!isAuthenticated) {
+      navigation.navigate('P3_LegalAuth', { returnTo: 'P4_CreateReport' });
+    } else {
+      navigation.navigate('P4_CreateReport');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -38,7 +48,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
 
       <TouchableOpacity
         style={styles.tabItem}
-        onPress={() => navigation.navigate('P4_CreateReport')}
+        onPress={handleReportPress}
       >
         <Ionicons
           name={activeTab === 'report' ? 'add-circle' : 'add-circle-outline'}

@@ -22,73 +22,78 @@ type Props = NativeStackScreenProps<RootStackParamList, 'P9_CredibilityPanel'>;
 
 export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
   const {
+    user,
+    isAuthenticated,
     identityFactors,
-    verifyPhone,
-    verifyDNI,
+    logout,
     calculateMyIdentityScore,
   } = useAuth();
-
-  // Modales interactivos
-  const [phoneModalVisible, setPhoneModalVisible] = useState(false);
-  const [digit1, setDigit1] = useState('1');
-  const [digit2, setDigit2] = useState('1');
-  const [digit3, setDigit3] = useState('0');
-  const [digit4, setDigit4] = useState('0');
-  const [phoneLoading, setPhoneLoading] = useState(false);
-
-  const [dniModalVisible, setDniModalVisible] = useState(false);
-  const [dniInput, setDniInput] = useState('38.412.905');
-  const [dniLoading, setDniLoading] = useState(false);
 
   const identityScore = calculateMyIdentityScore();
   // Score total simulado acumulado con evidencias
   const totalCredibility = Math.min(100, identityScore + 45 + 15);
 
-  const handleConfirmPhone = async () => {
-    setPhoneLoading(true);
-    await verifyPhone('+54 9 11 4455-8899', `${digit1}${digit2}${digit3}${digit4}`);
-    setPhoneLoading(false);
-    setPhoneModalVisible(false);
-    Alert.alert('¡Verificado!', 'Se han sumado +15% a tu nivel de credibilidad.');
-  };
-
-  const handleConfirmDNI = async () => {
-    setDniLoading(true);
-    await verifyDNI(dniInput);
-    setDniLoading(false);
-    setDniModalVisible(false);
-    Alert.alert('¡Verificado!', 'Se han sumado +10% a tu nivel de credibilidad.');
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Cabecera: Credibilidad */}
+      {/* Cabecera: Credibilidad y Sesión */}
       <View style={styles.topHeader}>
         <View style={styles.credibilityPill}>
-          <Text style={styles.credibilityPillText}>Credibilidad</Text>
+          <Text style={styles.credibilityPillText}>Credibilidad ({identityScore}/40 pts)</Text>
         </View>
+
+        {isAuthenticated && (
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={async () => {
+              await logout();
+              Alert.alert('Sesión Cerrada', 'Has vuelto al modo anónimo (U0).');
+            }}
+          >
+            <Ionicons name="log-out-outline" size={16} color="#EF4444" />
+            <Text style={styles.logoutBtnText}>Salir</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Cuerpo: Una lista de tres ítems */}
+        {/* Cuerpo: Lista interactiva de factores de identidad */}
         <View style={styles.checklistContainer}>
-          {/* Ítem 1: "Cuenta Google" (con tilde) */}
+          {/* Ítem 1: "Cuenta Google" */}
           <View style={styles.listItem}>
             <View style={styles.itemLeft}>
               <Ionicons name="logo-google" size={18} color="#0F172A" style={styles.itemIcon} />
-              <Text style={styles.itemTitle}>Cuenta Google</Text>
+              <View>
+                <Text style={styles.itemTitle}>Cuenta Google (+15%)</Text>
+                <Text style={styles.itemSub}>
+                  {user?.email ? user.email : 'Autenticación base obligatoria U1'}
+                </Text>
+              </View>
             </View>
-            <View style={styles.checkBadge}>
-              <Ionicons name="checkmark" size={16} color="#000000" />
-            </View>
+            {identityFactors.googleAuth ? (
+              <View style={styles.checkBadge}>
+                <Ionicons name="checkmark" size={16} color="#000000" />
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.verifyButton}
+                onPress={() => navigation.navigate('P3_LegalAuth', { returnTo: 'P9_CredibilityPanel' })}
+              >
+                <Text style={styles.verifyButtonText}>Ingresar</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Ítem 2: "Teléfono verificado (+15%)" (con botón 'Verificar') */}
+          {/* Ítem 2: "Teléfono verificado (+15%)" */}
           <View style={styles.listItem}>
             <View style={styles.itemLeft}>
               <Ionicons name="phone-portrait-outline" size={18} color="#0F172A" style={styles.itemIcon} />
               <View>
                 <Text style={styles.itemTitle}>Teléfono verificado (+15%)</Text>
+                <Text style={styles.itemSub}>
+                  {identityFactors.phoneVerified
+                    ? `${user?.phoneNumber || 'SMS Validado'}`
+                    : 'Validación SMS OTP (U2)'}
+                </Text>
               </View>
             </View>
 
@@ -99,19 +104,24 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
             ) : (
               <TouchableOpacity
                 style={styles.verifyButton}
-                onPress={() => setPhoneModalVisible(true)}
+                onPress={() => navigation.navigate('IdentityUpgrade', { factor: 'phone' })}
               >
                 <Text style={styles.verifyButtonText}>Verificar</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Ítem 3: "DNI verificado (+10%)" (con botón 'Verificar') */}
+          {/* Ítem 3: "DNI verificado (+10%)" */}
           <View style={styles.listItem}>
             <View style={styles.itemLeft}>
               <Ionicons name="card-outline" size={18} color="#0F172A" style={styles.itemIcon} />
               <View>
                 <Text style={styles.itemTitle}>DNI verificado (+10%)</Text>
+                <Text style={styles.itemSub}>
+                  {identityFactors.dniVerified
+                    ? `DNI N° ${user?.dniNumber || 'Verificado'}`
+                    : 'Cotejo fotográfico OCR (U2)'}
+                </Text>
               </View>
             </View>
 
@@ -122,7 +132,7 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
             ) : (
               <TouchableOpacity
                 style={styles.verifyButton}
-                onPress={() => setDniModalVisible(true)}
+                onPress={() => navigation.navigate('IdentityUpgrade', { factor: 'dni' })}
               >
                 <Text style={styles.verifyButtonText}>Verificar</Text>
               </TouchableOpacity>
@@ -173,113 +183,6 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Modal Interactivo de Verificación de Teléfono con diseño de Figma (pantalla 2 desde la derecha) */}
-      <Modal visible={phoneModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.otpCard}>
-            <Text style={styles.brandTitle}>Atenti</Text>
-            <Text style={styles.otpSubtitle}>
-              Verificación de teléfono{"\n"}(código de 4 dígitos enviado por SMS)
-            </Text>
-
-            {/* 4 casilleros de dígitos: [ 1 ] [ 1 ] [ 0 ] [ 0 ] */}
-            <View style={styles.otpDigitsRow}>
-              <TextInput
-                style={styles.digitBox}
-                value={digit1}
-                onChangeText={setDigit1}
-                keyboardType="numeric"
-                maxLength={1}
-              />
-              <TextInput
-                style={styles.digitBox}
-                value={digit2}
-                onChangeText={setDigit2}
-                keyboardType="numeric"
-                maxLength={1}
-              />
-              <TextInput
-                style={styles.digitBox}
-                value={digit3}
-                onChangeText={setDigit3}
-                keyboardType="numeric"
-                maxLength={1}
-              />
-              <TextInput
-                style={styles.digitBox}
-                value={digit4}
-                onChangeText={setDigit4}
-                keyboardType="numeric"
-                maxLength={1}
-              />
-            </View>
-
-            {/* Botón ancho Confirmar */}
-            <TouchableOpacity
-              style={styles.otpConfirmBtn}
-              activeOpacity={0.88}
-              onPress={handleConfirmPhone}
-              disabled={phoneLoading}
-            >
-              {phoneLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.otpConfirmBtnText}>Confirmar</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setPhoneModalVisible(false)}
-              style={styles.closeModalBtn}
-            >
-              <Text style={styles.closeModalBtnText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal Interactivo de Verificación de DNI */}
-      <Modal visible={dniModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.otpCard}>
-            <Text style={styles.brandTitle}>Atenti</Text>
-            <Text style={styles.otpSubtitle}>
-              Verificación de DNI con Renaper (+10%)
-            </Text>
-
-            <View style={styles.dniInputBox}>
-              <TextInput
-                style={styles.dniInput}
-                value={dniInput}
-                onChangeText={setDniInput}
-                keyboardType="numeric"
-                placeholder="Número de DNI"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.otpConfirmBtn}
-              activeOpacity={0.88}
-              onPress={handleConfirmDNI}
-              disabled={dniLoading}
-            >
-              {dniLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.otpConfirmBtnText}>Validar DNI</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setDniModalVisible(false)}
-              style={styles.closeModalBtn}
-            >
-              <Text style={styles.closeModalBtnText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
       <BottomNavBar activeTab="profile" />
     </SafeAreaView>
   );
@@ -293,13 +196,15 @@ const styles = StyleSheet.create({
   topHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   credibilityPill: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
   },
@@ -307,6 +212,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#0F172A',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#FEE2E2',
+    gap: 4,
+  },
+  logoutBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#EF4444',
+  },
+  itemSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
   scrollContent: {
     padding: 16,

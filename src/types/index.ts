@@ -57,11 +57,32 @@ export interface AuditMetadata {
   clientIp: string;
   platform: 'android' | 'ios' | 'web';
   createdAt: string;
+  /** RNF3: hash criptográfico inmutable de la DDJJ, UID, IP y timestamp */
+  ddjjHash?: string;
+  ddjjAccepted?: boolean;
+  ddjjAcceptedAt?: string;
+  indemnityAccepted?: boolean;
+}
+
+export interface DniOcrResult {
+  extractedDni: string;
+  fullName?: string;
+  gender?: string;
+  tramiteNumber?: string;
+  confidence: number;
+  matched: boolean;
+  documentType: 'DNI_ARG' | 'UNKNOWN';
 }
 
 export interface IncidentReport {
   id: string;
-  trackingCode: string; // ej: AT-2026-XXXX
+  trackingCode: string; // ej: AT-2026-XXXXXX (I-01 único)
+  /** RG-06: clave idempotente generada por el cliente para el intento lógico. */
+  claveOperacion?: string;
+  /** Etapa 3 §4: estado canónico. `status` se conserva por compatibilidad. */
+  estadoActual?: 'RECIBIDA' | 'PUBLICADA' | 'EN_DISPUTA' | 'RESUELTA';
+  /** Etapa 3 §3: índice de agrupación comunitaria. */
+  valorNormalizado?: string;
   identifierType: IdentifierType;
   identifierValue: string;
   title: string;
@@ -79,6 +100,8 @@ export interface IncidentReport {
 export interface ReportDraft {
   id: string;
   savedAt: number;
+  /** RG-06: el borrador retiene la misma clave del intento lógico (E2/E3). */
+  claveOperacion: string;
   category: IncidentCategory;
   identifierType: IdentifierType;
   identifierValue: string;
@@ -101,11 +124,13 @@ export interface UserProfile {
 export type RootStackParamList = {
   P1_Home: undefined;
   P2_ReportDetail: { incident: IncidentReport };
-  P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' } | undefined;
+  P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' | 'IdentityUpgrade' } | undefined;
   P4_CreateReport: { prefilledIdentifier?: { type: IdentifierType; value: string }; draftId?: string } | undefined;
   P5_OCRValidation: undefined;
   P6_ValidationError: { field: string; message: string; invalidValue: string };
   P7_OfflineModal: { draftId?: string } | undefined;
   P8_Confirmation: { trackingCode: string; finalScore: number; incidentId: string };
   P9_CredibilityPanel: undefined;
+  IdentityUpgrade: { factor?: 'phone' | 'dni' } | undefined;
 };
+

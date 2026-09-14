@@ -3,13 +3,44 @@
  * Detecta y extrae identificadores (CBU, Alias, CUIT, importes) en comprobantes y capturas
  */
 
-import { IdentifierType } from '../types';
+import { IdentifierType, DniOcrResult } from '../types';
 
 export interface OcrResult {
   extractedText: string;
   detectedIdentifier?: string;
   matched: boolean;
   confidence: number;
+}
+
+export function validateDniFormat(dni: string): boolean {
+  const clean = dni.replace(/\D/g, '');
+  return clean.length >= 7 && clean.length <= 8;
+}
+
+/**
+ * T07: Procesa imagen de Documento Nacional de Identidad (DNI)
+ * Extrae número de documento (7 u 8 dígitos), apellidos/nombres y número de trámite
+ */
+export async function processDniOCR(
+  imageUri: string,
+  manualHint?: string
+): Promise<DniOcrResult> {
+  // Simulación de latencia de red y visión artificial Cloud Vision
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+
+  const clean = (manualHint || '38412905').replace(/\D/g, '');
+  const isValid = validateDniFormat(clean);
+  const dniNumber = isValid ? clean : '38412905';
+
+  return {
+    extractedDni: dniNumber,
+    fullName: 'RODRIGUEZ, MARTIN EZEQUIEL',
+    gender: 'M',
+    tramiteNumber: '00284719203',
+    confidence: isValid ? 0.95 : 0.82,
+    matched: isValid,
+    documentType: 'DNI_ARG',
+  };
 }
 
 export async function processEvidenceOCR(

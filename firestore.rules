@@ -1,18 +1,66 @@
-rules_version='2'
-
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 10, 12);
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.admin == true;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Catálogo público de solo lectura
+    match /categorias/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Denuncias: escritura solo autenticada + DDJJ (verificada en Functions);
+    // lectura pública restringida a proyección PUBLICADA vía Functions/REST.
+    match /denuncias/{id} {
+      allow read: if isAdmin()
+        || (resource.data.estadoActual == 'PUBLICADA');
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Índice idempotente: solo backend/Functions escribe
+    match /denuncias_by_clave/{clave} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /objetivos/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /ubicaciones/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /evidencias/{id} {
+      // I-07: el original solo admin; la proyección enmascarada la sirve Functions
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+    match /historialEstado/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /impugnaciones/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+    match /audit_logs/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /atenti_counters/{id} {
+      allow read, write: if false;
     }
   }
 }
