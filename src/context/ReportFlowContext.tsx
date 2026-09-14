@@ -13,7 +13,8 @@ import {
   ReportDraft,
 } from '../types';
 import { calculateRG07Score } from '../services/credibility';
-import { saveIncidentReportAtomic } from '../services/firebase';
+import { registrarDenuncia } from '../services/firebase';
+import { generateOperationKey } from '../services/operationKey';
 import { saveDraft } from '../services/draftStorage';
 
 interface ReportFlowContextType {
@@ -58,6 +59,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
   const [location, setLocation] = useState<LocationData>(defaultLocation);
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [activeOperationKey, setActiveOperationKey] = useState<string>(() => generateOperationKey());
   const [simulateOffline, setSimulateOffline] = useState<boolean>(false);
 
   // Cálculo dinámico de credibilidad (RG-07)
@@ -93,6 +95,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
 
   const loadFromDraft = (draft: ReportDraft) => {
     setActiveDraftId(draft.id);
+    setActiveOperationKey(draft.claveOperacion || generateOperationKey());
     setCategory(draft.category);
     setIdentifierType(draft.identifierType);
     setIdentifierValue(draft.identifierValue);
@@ -104,6 +107,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
 
   const resetForm = () => {
     setActiveDraftId(null);
+    setActiveOperationKey(generateOperationKey());
     setCategory('Estafa Bancaria');
     setIdentifierType('Alias');
     setIdentifierValue('');
@@ -116,6 +120,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
   const saveCurrentDraft = async (): Promise<ReportDraft> => {
     const draft = await saveDraft({
       id: activeDraftId || undefined,
+      claveOperacion: activeOperationKey,
       category,
       identifierType,
       identifierValue,
@@ -130,12 +135,13 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
 
   const submitReport = async (): Promise<IncidentReport> => {
     if (simulateOffline) {
-      // Simular fallo de conectividad para disparar P7
+      // E2: borrador retiene la misma clave_operacion, sin código AT-.
       await saveCurrentDraft();
       throw new Error('NETWORK_OFFLINE_ERROR');
     }
 
-    const report = await saveIncidentReportAtomic({
+    // E3: reintentos usan la misma clave; el servidor devuelve el código original.
+    const { reporte } = await registrarDenuncia({
       identifierType,
       identifierValue,
       category,
@@ -144,10 +150,12 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       evidences,
       uid: 'usr_atenti_reporter_demo',
       userEmail: 'denunciante.atenti@gmail.com',
-      credibilityScore,
+      ddjjAceptada: true,
+      googleVerificado: true,
+      claveOperacion: activeOperationKey,
     });
 
-    return report;
+    return reporte;
   };
 
   return (
