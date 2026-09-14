@@ -57,6 +57,21 @@ export interface AuditMetadata {
   clientIp: string;
   platform: 'android' | 'ios' | 'web';
   createdAt: string;
+  /** RNF3: hash criptográfico inmutable de la DDJJ, UID, IP y timestamp */
+  ddjjHash?: string;
+  ddjjAccepted?: boolean;
+  ddjjAcceptedAt?: string;
+  indemnityAccepted?: boolean;
+}
+
+export interface DniOcrResult {
+  extractedDni: string;
+  fullName?: string;
+  gender?: string;
+  tramiteNumber?: string;
+  confidence: number;
+  matched: boolean;
+  documentType: 'DNI_ARG' | 'UNKNOWN';
 }
 
 export interface IncidentReport {
@@ -109,11 +124,13 @@ export interface UserProfile {
 export type RootStackParamList = {
   P1_Home: undefined;
   P2_ReportDetail: { incident: IncidentReport };
-  P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' } | undefined;
+  P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' | 'IdentityUpgrade' } | undefined;
   P4_CreateReport: { prefilledIdentifier?: { type: IdentifierType; value: string }; draftId?: string } | undefined;
   P5_OCRValidation: undefined;
   P6_ValidationError: { field: string; message: string; invalidValue: string };
   P7_OfflineModal: { draftId?: string } | undefined;
   P8_Confirmation: { trackingCode: string; finalScore: number; incidentId: string };
   P9_CredibilityPanel: undefined;
+  IdentityUpgrade: { factor?: 'phone' | 'dni' } | undefined;
 };
+
