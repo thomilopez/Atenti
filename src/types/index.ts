@@ -78,6 +78,7 @@ export interface IncidentReport {
 
 export interface ReportDraft {
   id: string;
+  clave_operacion: string; // Identificador único para el borrador, usado para guardar y recuperar
   savedAt: number;
   category: IncidentCategory;
   identifierType: IdentifierType;

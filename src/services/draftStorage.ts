@@ -7,18 +7,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReportDraft } from '../types';
 
 const DRAFTS_STORAGE_KEY = '@atenti_drafts_v1';
-
-export async function saveDraft(draft: Omit<ReportDraft, 'id' | 'savedAt'> & { id?: string }): Promise<ReportDraft> {
+// Guarda o actualiza un borrador local usando la clave_operacion como identificador unico
+export async function saveDraft(draft: Omit<ReportDraft, 'savedAt'> & { clave_operacion: string }): Promise<ReportDraft> {
   try {
     const existing = await getDrafts();
-    const id = draft.id || `draft_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const fullDraft: ReportDraft = {
+   const fullDraft: ReportDraft = {
       ...draft,
-      id,
+      id: draft.id || draft.clave_operacion, // Asigna clave_operacion a id para mantener retrocompatibilidad
+      clave_operacion: draft.clave_operacion,
       savedAt: Date.now(),
     };
 
-    const filtered = existing.filter((d) => d.id !== id);
+    const filtered = existing.filter((d) => d.clave_operacion !== draft.clave_operacion);
     const updated = [fullDraft, ...filtered];
 
     await AsyncStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(updated));
@@ -40,20 +40,20 @@ export async function getDrafts(): Promise<ReportDraft[]> {
   }
 }
 
-export async function getDraftById(id: string): Promise<ReportDraft | null> {
+export async function getDraftByClaveOperacion(clave_operacion: string): Promise<ReportDraft | null> {
   try {
     const drafts = await getDrafts();
-    return drafts.find((d) => d.id === id) || null;
+    return drafts.find((d) => d.clave_operacion === clave_operacion) || null;
   } catch (error) {
-    console.error('Error al buscar borrador:', error);
+  console.error('Error al buscar borrador por clave_operacion:', error);
     return null;
   }
 }
 
-export async function deleteDraft(id: string): Promise<void> {
+export async function deleteDraftByClaveOperacion(clave_operacion: string): Promise<void> {
   try {
     const existing = await getDrafts();
-    const updated = existing.filter((d) => d.id !== id);
+    const updated = existing.filter((d) => d.clave_operacion !== clave_operacion);
     await AsyncStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(updated));
   } catch (error) {
     console.error('Error al eliminar borrador de AsyncStorage:', error);
