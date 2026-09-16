@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 
+import { P0_WelcomeScreen } from '../screens/P0_WelcomeScreen';
 import { P1_HomeScreen } from '../screens/P1_HomeScreen';
 import { P2_ReportDetailScreen } from '../screens/P2_ReportDetailScreen';
 import { P3_LegalAuthScreen } from '../screens/P3_LegalAuthScreen';
@@ -19,12 +20,15 @@ export const AppNavigator: React.FC = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="P1_Home"
+        initialRouteName="P0_Welcome"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
         }}
       >
+        {/* P0 - Bienvenida / Onboarding */}
+        <Stack.Screen name="P0_Welcome" component={P0_WelcomeScreen} />
+
         {/* P1 - Buscador Anónimo (Home / HomeScreen) */}
         <Stack.Screen name="P1_Home" component={P1_HomeScreen} />
 
