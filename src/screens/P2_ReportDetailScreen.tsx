@@ -5,9 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -16,6 +16,7 @@ import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useAuth } from '../context/AuthContext';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { AppButton } from '../components/AppButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P2_ReportDetail'>;
 
@@ -48,13 +49,20 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Barra de navegación superior */}
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>Detalle de Incidencia</Text>
+        <Text style={styles.navTitle} numberOfLines={1}>Detalle de Incidencia</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -152,13 +160,13 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
 
       {/* Pie: Botón ancho "Denunciar mismo objetivo" */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.denounceBtn}
-          activeOpacity={0.88}
+        <AppButton
+          title="Denunciar mismo objetivo"
           onPress={handleDenounceSameTarget}
-        >
-          <Text style={styles.denounceBtnText}>Denunciar mismo objetivo</Text>
-        </TouchableOpacity>
+          variant="primary"
+          size="lg"
+          iconLeft="alert-circle-outline"
+        />
       </View>
 
       <BottomNavBar activeTab="home" />

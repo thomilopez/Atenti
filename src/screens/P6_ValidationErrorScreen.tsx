@@ -6,25 +6,20 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { IdentifierType, IncidentCategory, RootStackParamList } from '../types';
+import { IdentifierType, RootStackParamList } from '../types';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { CATEGORY_NAMES, REPORT_CATEGORIES } from '../constants/reportCategories';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P6_ValidationError'>;
 
-const CATEGORIES: IncidentCategory[] = [
-  'Estafa Bancaria',
-  'Phishing / Suplantación',
-  'Comercio Virtual Falso',
-  'Local Físico Ilícito',
-  'Clonación de Identidad',
-];
+const CATEGORIES = CATEGORY_NAMES;
 
 const IDENTIFIER_TYPES: IdentifierType[] = ['Alias', 'CBU', 'Tel', 'Local'];
 
@@ -65,7 +60,7 @@ export const P6_ValidationErrorScreen: React.FC<Props> = ({ route, navigation })
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.navBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />

@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentReport, RootStackParamList } from '../types';
@@ -57,10 +57,10 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Cabecera: Barra de búsqueda unificada (rectángulo largo con ícono de lupa) */}
+      {/* Cabecera: Barra de búsqueda unificada */}
       <View style={styles.header}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color="#64748B" style={styles.searchIcon} />
@@ -73,13 +73,19 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
             autoCapitalize="none"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Limpiar búsqueda"
+            >
               <Ionicons name="close-circle" size={18} color="#94A3B8" />
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Filtros: 4 rectángulos pequeños redondeados (Chips) debajo del buscador */}
+        {/* Filtros: Chips debajo del buscador */}
         <View style={styles.chipsContainer}>
           <ScrollView
             horizontal
@@ -91,10 +97,17 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={chip.type}
+                  activeOpacity={0.75}
+                  hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                   style={[styles.chip, isActive && styles.chipActive]}
                   onPress={() => setSelectedChip(isActive ? null : chip.type)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filtrar por ${chip.label}`}
                 >
-                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                  <Text
+                    style={[styles.chipText, isActive && styles.chipTextActive]}
+                    numberOfLines={1}
+                  >
                     [{chip.label}]
                   </Text>
                 </TouchableOpacity>
@@ -104,25 +117,34 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
 
           <TouchableOpacity
             style={styles.draftsShortcut}
+            activeOpacity={0.75}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={() => setShowDraftsModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Ver borradores guardados"
           >
             <Ionicons name="folder-outline" size={18} color="#0F172A" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Cuerpo: Un rectángulo gris grande ocupando el 70% de la pantalla (representa el mapa) */}
+      {/* Cuerpo: Mapa interactivo con soporte de geolocalización */}
       <View style={styles.mapContainer}>
         <MapViewWrapper
           incidents={incidents}
           onMarkerPress={handleMarkerPress}
+          autoLocateUser={true}
+          showRecenterButton={true}
         />
 
-        {/* Botón Flotante (FAB): Un círculo oscuro abajo a la derecha con un "+" */}
+        {/* Botón Flotante (FAB): Crear Reporte */}
         <TouchableOpacity
           style={styles.fab}
-          activeOpacity={0.88}
+          activeOpacity={0.8}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           onPress={handleFabPress}
+          accessibilityRole="button"
+          accessibilityLabel="Crear nuevo reporte de fraude"
         >
           <Ionicons name="add" size={32} color="#FFFFFF" />
         </TouchableOpacity>

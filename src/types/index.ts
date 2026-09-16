@@ -10,7 +10,12 @@ export type IncidentCategory =
   | 'Phishing / Suplantación'
   | 'Comercio Virtual Falso'
   | 'Local Físico Ilícito'
-  | 'Clonación de Identidad';
+  | 'Clonación de Identidad'
+  | 'Fraude con Criptoactivos'
+  | 'Robo o Despojo en Vía Pública'
+  | 'Falso Gestor / Trámite'
+  | 'Llamada Extorsiva / Cuento del Tío'
+  | 'Alquiler Fantasma / Inmueble Falso';
 
 export type VeracityLevel = 'ALTA' | 'SOSPECHOSA' | 'BAJA';
 
@@ -122,6 +127,7 @@ export interface UserProfile {
 }
 
 export type RootStackParamList = {
+  P0_Welcome: undefined;
   P1_Home: undefined;
   P2_ReportDetail: { incident: IncidentReport };
   P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' | 'IdentityUpgrade' } | undefined;
