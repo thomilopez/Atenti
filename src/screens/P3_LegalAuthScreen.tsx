@@ -29,15 +29,15 @@ export const P3_LegalAuthScreen: React.FC<Props> = ({ route, navigation }) => {
   const handleContinue = async () => {
     if (!acceptedDDJJ) {
       Alert.alert(
-        'Declaración Jurada Requerida',
-        'Debes tildar el casillero de aceptación de DDJJ y Términos para continuar.'
+        'Declaración Jurada Requerida (CP-04 / RG-01)',
+        'Debes aceptar expresamente la Declaración Jurada y Términos para identificarte y emitir reportes.'
       );
       return;
     }
 
     try {
       setLoading(true);
-      await loginWithGoogle();
+      await loginWithGoogle(userEmail.trim() || undefined);
       setLoading(false);
 
       if (returnTo === 'P4_CreateReport') {

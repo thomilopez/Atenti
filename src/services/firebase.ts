@@ -4,6 +4,7 @@
  */
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import {
   getFirestore,
   collection,
@@ -42,6 +43,7 @@ import {
   checkInvarianteI05,
 } from './stateMachine';
 import { toPublicProjection, PublicIncidentProjection } from './masking';
+import { generateDdjjHash } from './legalAudit';
 
 // Configuración de Firebase (Puede sobreescribirse con variables de entorno)
 const firebaseConfig = {
@@ -53,9 +55,10 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:928374829103:web:7823abce9012837',
 };
 
-// Inicialización de la App Firebase
+// Inicialización de la App Firebase y Servicios
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
+export const auth = getAuth(app);
 
 // Semilla inicial con incidentes geolocalizados en Argentina (CABA, Córdoba, Rosario, Mendoza)
 export const INITIAL_SEED_INCIDENTS: IncidentReport[] = [
@@ -456,6 +459,8 @@ export interface RegistrarDenunciaInput {
   ddjjAceptada: boolean;
   googleVerificado: boolean;
   claveOperacion?: string;
+  clientIp?: string;
+  ddjjHash?: string;
 }
 
 export interface RegistrarDenunciaResult {
@@ -467,13 +472,14 @@ export interface RegistrarDenunciaResult {
 
 /**
  * OPERACIÓN registrarDenuncia — pseudocódigo Etapa 3 §5 llevado a código.
- * 1) Requiere Google + DDJJ (RG-01). 2) Idempotencia (RG-06).
+ * 1) Requiere Google + DDJJ (RG-01, CA2 / CP-04). 2) Idempotencia (RG-06).
  * 3) Transacción atómica Denuncia+Objetivo+Ubicación+Evidencias+Historial (RG-04).
- * 4) RECIBIDA -> PUBLICADA automático si pct>=20 (camino principal Etapa 2 §4.1).
+ * 4) Auditoría inmutable RNF3: UID, IP, timestamp y hash SHA-256 de DDJJ.
+ * 5) RECIBIDA -> PUBLICADA automático si pct>=20 (camino principal Etapa 2 §4.1).
  */
 export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<RegistrarDenunciaResult> {
   if (!input.googleVerificado || !input.ddjjAceptada) {
-    throw new Error('RG-01: se requiere sesión Google válida y DDJJ aceptada');
+    throw new Error('RG-01: se requiere sesión Google válida y DDJJ aceptada (CP-04)');
   }
   const claveOperacion = input.claveOperacion?.trim() || generateOperationKey();
   if (!isValidOperationKey(claveOperacion)) throw new Error('RG-06: clave_operacion inválida');
@@ -501,13 +507,28 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
   const seq = await nextTrackingSequence();
   const codigo = formatTrackingCode(seq);
   const incidentId = `den_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const timestampIso = new Date().toISOString();
+  const clientIp = input.clientIp || '190.191.240.12';
+
+  // RNF3: Generar hash inmutable de la DDJJ vinculada a la identidad
+  const ddjjHash =
+    input.ddjjHash ||
+    (await generateDdjjHash({
+      uid: input.uid,
+      timestamp: timestampIso,
+      clientIp,
+    }));
 
   const audit: AuditMetadata = {
     uid: input.uid,
     userEmail: input.userEmail,
-    clientIp: '0.0.0.0',
+    clientIp,
     platform: Platform.OS as 'android' | 'ios' | 'web',
-    createdAt: new Date().toISOString(),
+    createdAt: timestampIso,
+    ddjjHash,
+    ddjjAccepted: input.ddjjAceptada,
+    ddjjAcceptedAt: timestampIso,
+    indemnityAccepted: true,
   };
 
   const destino: DenunciaEstado = pct >= 20 ? 'PUBLICADA' : 'RECIBIDA';

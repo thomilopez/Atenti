@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface BottomNavBarProps {
   activeTab?: 'home' | 'map' | 'report' | 'profile';
@@ -13,8 +14,17 @@ interface BottomNavBarProps {
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const { isAuthenticated } = useAuth();
 
   const hitSlop = { top: 8, bottom: 8, left: 12, right: 12 };
+
+  const handleReportPress = () => {
+    if (!isAuthenticated) {
+      navigation.navigate('P3_LegalAuth', { returnTo: 'P4_CreateReport' });
+    } else {
+      navigation.navigate('P4_CreateReport');
+    }
+  };
 
   return (
     <View
@@ -74,7 +84,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
           style={styles.tabItem}
           activeOpacity={0.75}
           hitSlop={hitSlop}
-          onPress={() => navigation.navigate('P4_CreateReport')}
+          onPress={handleReportPress}
           accessibilityRole="button"
           accessibilityLabel="Reportar"
         >

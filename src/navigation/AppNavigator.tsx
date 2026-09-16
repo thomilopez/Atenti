@@ -13,6 +13,7 @@ import { P6_ValidationErrorScreen } from '../screens/P6_ValidationErrorScreen';
 import { P7_OfflineModal } from '../screens/P7_OfflineModal';
 import { P8_ConfirmationScreen } from '../screens/P8_ConfirmationScreen';
 import { P9_CredibilityPanelScreen } from '../screens/P9_CredibilityPanelScreen';
+import { IdentityUpgradeScreen } from '../screens/IdentityUpgradeScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -66,6 +67,9 @@ export const AppNavigator: React.FC = () => {
 
         {/* P9 - Panel 'Mi Credibilidad' (CredibilityPanelScreen) */}
         <Stack.Screen name="P9_CredibilityPanel" component={P9_CredibilityPanelScreen} />
+
+        {/* Pantalla de Verificación Progresiva U2 (SMS OTP + DNI OCR) */}
+        <Stack.Screen name="IdentityUpgrade" component={IdentityUpgradeScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
