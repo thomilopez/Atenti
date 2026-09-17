@@ -28,6 +28,38 @@ interface MapViewWrapperProps {
   showRecenterButton?: boolean;
 }
 
+// Error Boundary para capturar fallos nativos de react-native-maps y degradar gracefully
+interface ErrorBoundaryProps {
+  fallback: React.ReactNode;
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class MapErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(_error: any): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, info: any) {
+    console.warn('Error al renderizar mapa nativo, alternando a mapa interactivo de respaldo:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
 // Carga condicional de react-native-maps para plataformas móviles
 let NativeMapView: any = null;
 let NativeMarker: any = null;
@@ -68,6 +100,15 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
     longitudeDelta: 0.05,
   });
 
+  // Temporizador de seguridad: si onMapReady no dispara en 2 segundos (común en emuladores o Android),
+  // liberamos el overlay de carga para asegurar que el mapa y los controles sean visibles e interactivos.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsMapReady(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Localizar al usuario al montar el componente
   useEffect(() => {
     let isMounted = true;
@@ -106,121 +147,8 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
     }
   };
 
-  // Renderizado Nativo (Android / iOS con Google Maps / Apple Maps)
-  if (Platform.OS !== 'web' && NativeMapView && NativeMarker) {
-    return (
-      <View style={[styles.container, style]}>
-        <NativeMapView
-          ref={mapRef}
-          style={StyleSheet.absoluteFill}
-          provider={Platform.OS === 'android' ? NativeProviderGoogle : undefined}
-          initialRegion={currentRegion}
-          loadingEnabled={true}
-          loadingIndicatorColor="#0F172A"
-          loadingBackgroundColor="#F8FAFC"
-          showsUserLocation={false} // Usamos marcador personalizado para consistencia visual
-          showsCompass={true}
-          showsMyLocationButton={false} // Usamos nuestro FAB con estilo de diseño Atenti
-          onMapReady={() => setIsMapReady(true)}
-          onPress={(e: any) => {
-            if (onSelectLocation && e.nativeEvent?.coordinate) {
-              const { latitude, longitude } = e.nativeEvent.coordinate;
-              onSelectLocation({
-                latitude,
-                longitude,
-                address: `Punto fijado (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
-              });
-            }
-          }}
-        >
-          {/* Marcador distintivo de la ubicación actual del usuario */}
-          {userLocation && (
-            <NativeMarker
-              coordinate={{
-                latitude: userLocation.latitude,
-                longitude: userLocation.longitude,
-              }}
-              title="Tu ubicación"
-              description="Estás aquí"
-              zIndex={999}
-            >
-              <View style={styles.userMarkerOuter}>
-                <View style={styles.userMarkerPulse} />
-                <View style={styles.userMarkerCore} />
-              </View>
-            </NativeMarker>
-          )}
-
-          {/* Marcadores de incidentes reportados en la comunidad */}
-          {incidents.map((incident) => {
-            const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
-            return (
-              <NativeMarker
-                key={incident.id}
-                coordinate={{
-                  latitude: incident.location.latitude,
-                  longitude: incident.location.longitude,
-                }}
-                pinColor={pinColor}
-                title={incident.title}
-                description={`${incident.category} • Credibilidad: ${incident.credibilityScore}%`}
-                onPress={() => {
-                  setActiveIncident(incident);
-                  if (onMarkerPress) onMarkerPress(incident);
-                }}
-              />
-            );
-          })}
-
-          {/* Marcador de punto fijado manualmente (ej: al crear reporte) */}
-          {selectedLocation && (
-            <NativeMarker
-              coordinate={{
-                latitude: selectedLocation.latitude,
-                longitude: selectedLocation.longitude,
-              }}
-              pinColor="#2563EB"
-              title="Ubicación fijada"
-              description={selectedLocation.address}
-            />
-          )}
-        </NativeMapView>
-
-        {/* Indicador de carga inicial */}
-        {!isMapReady && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#0F172A" />
-            <Text style={styles.loadingText}>Cargando mapa de alertas...</Text>
-          </View>
-        )}
-
-        {/* Botón flotante para recentrar en la ubicación del usuario */}
-        {showRecenterButton && (
-          <TouchableOpacity
-            style={styles.recenterFab}
-            activeOpacity={0.8}
-            onPress={() => locateUser(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Centrar en mi ubicación actual"
-            accessibilityRole="button"
-          >
-            {isLocating ? (
-              <ActivityIndicator size="small" color="#0F172A" />
-            ) : (
-              <Ionicons
-                name={userLocation ? 'locate' : 'locate-outline'}
-                size={22}
-                color="#0F172A"
-              />
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  }
-
-  // Fallback interactivo para Web / Expo Web (simulación enriquecida de mapa geolocalizado)
-  return (
+  // Renderizado interactivo de respaldo (usado en Web o en caso de indisponibilidad del mapa nativo)
+  const renderFallbackMap = () => (
     <View style={[styles.webContainer, style]}>
       {/* Fondo de mapa con cuadrícula temática */}
       <View style={styles.gridOverlay}>
@@ -243,7 +171,7 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
         </Text>
       </View>
 
-      {/* Marcador de ubicación actual del usuario en la simulación web */}
+      {/* Marcador de ubicación actual del usuario en la simulación */}
       {userLocation && (
         <View style={[styles.webUserMarker, { left: '50%', top: '50%' }]}>
           <View style={styles.userMarkerPulse} />
@@ -355,6 +283,131 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
       )}
     </View>
   );
+
+  // Renderizado Nativo (Android / iOS con Google Maps / Apple Maps)
+  if (Platform.OS !== 'web' && NativeMapView && NativeMarker) {
+    // Si hay una API Key configurada explícitamente en el entorno, usamos PROVIDER_GOOGLE;
+    // de lo contrario, dejamos undefined para que Android use el provider nativo/Expo sin fallas de autorización
+    const nativeProvider =
+      Platform.OS === 'android' && process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+        ? NativeProviderGoogle
+        : undefined;
+
+    return (
+      <MapErrorBoundary fallback={renderFallbackMap()}>
+        <View style={[styles.container, style]}>
+          <NativeMapView
+            ref={mapRef}
+            style={StyleSheet.absoluteFill}
+            provider={nativeProvider}
+            initialRegion={currentRegion}
+            loadingEnabled={true}
+            loadingIndicatorColor="#0F172A"
+            loadingBackgroundColor="#F8FAFC"
+            showsUserLocation={false} // Usamos marcador personalizado para consistencia visual
+            showsCompass={true}
+            showsMyLocationButton={false} // Usamos nuestro FAB con estilo de diseño Atenti
+            onMapReady={() => setIsMapReady(true)}
+            onPress={(e: any) => {
+              if (onSelectLocation && e.nativeEvent?.coordinate) {
+                const { latitude, longitude } = e.nativeEvent.coordinate;
+                onSelectLocation({
+                  latitude,
+                  longitude,
+                  address: `Punto fijado (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+                });
+              }
+            }}
+          >
+            {/* Marcador distintivo de la ubicación actual del usuario */}
+            {userLocation && (
+              <NativeMarker
+                coordinate={{
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                }}
+                title="Tu ubicación"
+                description="Estás aquí"
+                zIndex={999}
+              >
+                <View style={styles.userMarkerOuter}>
+                  <View style={styles.userMarkerPulse} />
+                  <View style={styles.userMarkerCore} />
+                </View>
+              </NativeMarker>
+            )}
+
+            {/* Marcadores de incidentes reportados en la comunidad */}
+            {incidents.map((incident) => {
+              const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
+              return (
+                <NativeMarker
+                  key={incident.id}
+                  coordinate={{
+                    latitude: incident.location.latitude,
+                    longitude: incident.location.longitude,
+                  }}
+                  pinColor={pinColor}
+                  title={incident.title}
+                  description={`${incident.category} • Credibilidad: ${incident.credibilityScore}%`}
+                  onPress={() => {
+                    setActiveIncident(incident);
+                    if (onMarkerPress) onMarkerPress(incident);
+                  }}
+                />
+              );
+            })}
+
+            {/* Marcador de punto fijado manualmente (ej: al crear reporte) */}
+            {selectedLocation && (
+              <NativeMarker
+                coordinate={{
+                  latitude: selectedLocation.latitude,
+                  longitude: selectedLocation.longitude,
+                }}
+                pinColor="#2563EB"
+                title="Ubicación fijada"
+                description={selectedLocation.address}
+              />
+            )}
+          </NativeMapView>
+
+          {/* Indicador de carga inicial con auto-liberación por timeout */}
+          {!isMapReady && (
+            <View style={styles.loadingOverlay} pointerEvents="none">
+              <ActivityIndicator size="large" color="#0F172A" />
+              <Text style={styles.loadingText}>Cargando mapa de alertas...</Text>
+            </View>
+          )}
+
+          {/* Botón flotante para recentrar en la ubicación del usuario */}
+          {showRecenterButton && (
+            <TouchableOpacity
+              style={styles.recenterFab}
+              activeOpacity={0.8}
+              onPress={() => locateUser(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Centrar en mi ubicación actual"
+              accessibilityRole="button"
+            >
+              {isLocating ? (
+                <ActivityIndicator size="small" color="#0F172A" />
+              ) : (
+                <Ionicons
+                  name={userLocation ? 'locate' : 'locate-outline'}
+                  size={22}
+                  color="#0F172A"
+                />
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      </MapErrorBoundary>
+    );
+  }
+
+  // Fallback interactivo para Web / Expo Web (simulación enriquecida de mapa geolocalizado)
+  return renderFallbackMap();
 };
 
 const styles = StyleSheet.create({

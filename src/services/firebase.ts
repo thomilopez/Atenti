@@ -4,7 +4,13 @@
  */
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import {
+  getAuth,
+  initializeAuth,
+  // @ts-ignore - getReactNativePersistence está disponible en el bundle react-native de firebase/auth
+  getReactNativePersistence,
+} from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getFirestore,
   collection,
@@ -58,7 +64,22 @@ const firebaseConfig = {
 // Inicialización de la App Firebase y Servicios
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
-export const auth = getAuth(app);
+
+// Inicialización de Firebase Auth con persistencia en React Native (AsyncStorage) y fallback en Web
+const initAuth = () => {
+  if (Platform.OS !== 'web' && typeof getReactNativePersistence === 'function') {
+    try {
+      return initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    } catch (_e) {
+      return getAuth(app);
+    }
+  }
+  return getAuth(app);
+};
+
+export const auth = initAuth();
 
 // Semilla inicial con incidentes geolocalizados en Argentina (CABA, Córdoba, Rosario, Mendoza)
 export const INITIAL_SEED_INCIDENTS: IncidentReport[] = [

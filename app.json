@@ -57,7 +57,12 @@
           "locationWhenInUsePermission": "Atenti necesita tu ubicación para reportar y visualizar alertas de fraudes cercanos."
         }
       ],
-      "react-native-maps"
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSy_ATENTI_ANDROID_MAPS_KEY"
+        }
+      ]
     ]
   }
 }
