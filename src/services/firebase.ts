@@ -3,8 +3,11 @@
  * Persistencia atómica de reportes con metadatos de auditoría (UID, IP, timestamp)
  */
 
+<<<<<<< HEAD
+=======
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+>>>>>>> origin/main
 import {
   getFirestore,
   collection,
@@ -20,6 +23,7 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { Platform } from 'react-native';
+import { db } from '../config/firebase';
 import {
   AuditMetadata,
   EvidenceItem,
@@ -45,6 +49,8 @@ import {
 import { toPublicProjection, PublicIncidentProjection } from './masking';
 import { generateDdjjHash } from './legalAudit';
 
+<<<<<<< HEAD
+=======
 // Configuración de Firebase (Puede sobreescribirse con variables de entorno)
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDemoAtentiApiKey2026ArgentinaMVP',
@@ -60,6 +66,7 @@ export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getA
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
+>>>>>>> origin/main
 // Semilla inicial con incidentes geolocalizados en Argentina (CABA, Córdoba, Rosario, Mendoza)
 export const INITIAL_SEED_INCIDENTS: IncidentReport[] = [
   {
