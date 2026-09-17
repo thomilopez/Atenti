@@ -55,6 +55,18 @@ export const checkLocationPermissions = async (): Promise<boolean> => {
 };
 
 /**
+ * Función auxiliar para limitar el tiempo de espera de una promesa.
+ */
+const withTimeout = <T>(promise: Promise<T>, ms: number, timeoutErrorMsg: string): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutErrorMsg)), ms)
+    ),
+  ]);
+};
+
+/**
  * Obtiene la ubicación actual del usuario con reverse geocoding amigable.
  * Si falla o se rechaza el permiso, retorna las coordenadas predeterminadas de CABA.
  */
@@ -71,18 +83,48 @@ export const getCurrentUserLocation = async (): Promise<{
       };
     }
 
-    const currentPos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
+    // Intentar primero obtener la última posición conocida (rápida, sin esperar sincronización de satélites)
+    let coords: { latitude: number; longitude: number } | null = null;
+    try {
+      const lastKnown = await Location.getLastKnownPositionAsync();
+      if (lastKnown && lastKnown.coords) {
+        coords = {
+          latitude: lastKnown.coords.latitude,
+          longitude: lastKnown.coords.longitude,
+        };
+      }
+    } catch {
+      // Continuar con getCurrentPositionAsync si falla
+    }
 
-    const { latitude, longitude } = currentPos.coords;
+    // Si no había posición conocida o para actualizar, obtener la actual con timeout de 4 segundos
+    if (!coords) {
+      const currentPos = await withTimeout(
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        }),
+        4000,
+        'Timeout obteniendo posición actual'
+      );
+      coords = {
+        latitude: currentPos.coords.latitude,
+        longitude: currentPos.coords.longitude,
+      };
+    }
+
+    const { latitude, longitude } = coords;
 
     let address = `Ubicación actual (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
     let city = 'Ubicación actual';
     let province = '';
 
     try {
-      const reverse = await Location.reverseGeocodeAsync({ latitude, longitude });
+      // Reverse geocoding con timeout de 3 segundos para evitar bloqueos de red
+      const reverse = await withTimeout(
+        Location.reverseGeocodeAsync({ latitude, longitude }),
+        3000,
+        'Timeout en geocodificación inversa'
+      );
       if (reverse && reverse.length > 0) {
         const item = reverse[0];
         const street = item.street ? `${item.street} ${item.streetNumber || ''}`.trim() : '';
@@ -92,7 +134,7 @@ export const getCurrentUserLocation = async (): Promise<{
         address = [street, district, city].filter(Boolean).join(', ') || address;
       }
     } catch {
-      // Si el geocoding inverso falla por red, conservamos la dirección con coordenadas
+      // Si el geocoding inverso falla o expira por red, conservamos la dirección con coordenadas
     }
 
     return {
