@@ -74,5 +74,32 @@ for (const f of ['src/services/normalize.ts', 'src/services/operationKey.ts', 's
   assert(fs.existsSync(path.join(root, f)), `T04: existe ${f}`);
 }
 
+// --- RF-088 checksum CBU (réplica de normalize.ts) ---
+function validarBloqueCbu(bloque, pesos) {
+  let suma = 0;
+  for (let i = 0; i < pesos.length; i++) suma += Number(bloque[i]) * pesos[i];
+  const verificador = (10 - (suma % 10)) % 10;
+  return verificador === Number(bloque[pesos.length]);
+}
+function validarCbu(valor) {
+  const d = (valor || '').replace(/\D/g, '');
+  if (d.length !== 22) return false;
+  return (
+    validarBloqueCbu(d.slice(0, 8), [7, 1, 3, 9, 7, 1, 3]) &&
+    validarBloqueCbu(d.slice(8), [3, 9, 7, 1, 3, 9, 7, 1, 3, 9, 7, 1, 3])
+  );
+}
+assert(validarCbu('2850590940090418135201'), 'RF-088: CBU válido con checksum');
+assert(!validarCbu('0000003100084729103829'), 'RF-088: CBU con checksum inválido rechazado');
+assert(!validarCbu('123'), 'RF-088: CBU de longitud incorrecta rechazado');
+
+// --- RF-089 teléfono E.164 (réplica de normalize.ts) ---
+function validarTelefonoE164(valor) {
+  const norm = normalizeIdentifier('Tel', valor);
+  return /^\+54\d{10,11}$/.test(norm);
+}
+assert(validarTelefonoE164('011 15-3849-2018'), 'RF-089: teléfono argentino válido normaliza a E.164');
+assert(!validarTelefonoE164('123'), 'RF-089: teléfono inválido rechazado');
+
 console.log(`\nTOTAL BLOQUE A: ${passed} pasadas, ${failed} fallidas`);
 if (failed > 0) process.exit(1);

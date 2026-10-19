@@ -1,31 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAdmin() {
-      return request.auth != null
-        && request.auth.token.admin == true;
-    }
+
+    // ---------------------------------------------------------------------
+    // Roles (RF-015 / RNF-009): U0 anónimo, U1 verificado, U3 comercio, U4 admin.
+    // ---------------------------------------------------------------------
     function isSignedIn() {
       return request.auth != null;
     }
+    function rol() {
+      return isSignedIn()
+        ? (request.auth.token.role is string ? request.auth.token.role : 'U1')
+        : 'U0';
+    }
+    function isAdmin() {
+      return isSignedIn() && (request.auth.token.admin == true || rol() == 'U4');
+    }
+    function isComercio() {
+      return isSignedIn() && rol() == 'U3';
+    }
+    function esDuenioNuevo() {
+      return isSignedIn() && request.resource.data.audit.uid == request.auth.uid;
+    }
+    function esDuenioActual() {
+      return isSignedIn() && resource.data.audit.uid == request.auth.uid;
+    }
 
-    // Catálogo público de solo lectura
+    // Catálogo público de solo lectura; alta/baja solo admin.
     match /categorias/{id} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Denuncias: escritura solo autenticada + DDJJ (verificada en Functions);
-    // lectura pública restringida a proyección PUBLICADA vía Functions/REST.
+    // Denuncias: lectura pública solo PUBLICADA y no eliminada.
+    // Creación: usuario autenticado y dueño del registro.
+    // Actualización: admin, o dueño (edición / soft delete) mientras no esté RESUELTA.
     match /denuncias/{id} {
       allow read: if isAdmin()
-        || (resource.data.estadoActual == 'PUBLICADA');
-      allow create: if isSignedIn();
-      allow update: if isAdmin();
+        || (resource.data.estadoActual == 'PUBLICADA' && resource.data.eliminada != true);
+      allow create: if esDuenioNuevo();
+      allow update: if isAdmin()
+        || (esDuenioActual() && resource.data.estadoActual != 'RESUELTA');
       allow delete: if false;
     }
 
-    // Índice idempotente: solo backend/Functions escribe
+    // Índice idempotente: solo backend/Functions escribe.
     match /denuncias_by_clave/{clave} {
       allow read: if isSignedIn();
       allow write: if false;
@@ -39,28 +58,57 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+
+    // Evidencias: el original solo admin; la proyección enmascarada la sirve Functions.
     match /evidencias/{id} {
-      // I-07: el original solo admin; la proyección enmascarada la sirve Functions
       allow read: if isAdmin();
       allow create: if isSignedIn();
       allow update, delete: if false;
     }
+
     match /historialEstado/{id} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isSignedIn();
       allow write: if false;
     }
+
+    // Impugnaciones: las crea un comercio (U3) o un usuario autenticado;
+    // el take-down y la resolución los aplica admin/Functions.
     match /impugnaciones/{id} {
-      allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow read: if isAdmin() || isSignedIn();
+      allow create: if isComercio() || isSignedIn();
       allow update: if isAdmin();
       allow delete: if false;
     }
+
     match /audit_logs/{id} {
       allow read: if isAdmin();
       allow write: if false;
     }
+
     match /atenti_counters/{id} {
       allow read, write: if false;
+    }
+
+    // Rate limiting y OTP: solo Cloud Functions (Admin SDK).
+    match /rate_limits/{id} {
+      allow read, write: if false;
+    }
+    match /otp_codes/{id} {
+      allow read, write: if false;
+    }
+
+    // Borrado lógico: el dueño registra la baja; el admin audita.
+    match /eliminaciones/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // Solicitudes de baja (Ley 25.326): el dueño crea, el admin lee.
+    match /solicitudes_baja/{id} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
     }
   }
 }

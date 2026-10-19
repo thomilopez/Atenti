@@ -31,21 +31,34 @@ npm run android
 npm run web
 ```
 
+> Para conectar los servicios reales (Firebase Auth/Firestore/Storage, Cloud
+> Functions, Google Maps, Geocoding, Cloud Vision y RENAPER) seguí
+> [`docs/setup-servicios.md`](docs/setup-servicios.md) y completá el archivo
+> `.env` usando `.env.example` como base. Sin `.env`, la app funciona en modo
+> demo con el fallback en memoria.
+
 ---
 
-## 🗺️ Mapa de las 9 Pantallas Implementadas
+## 🗺️ Mapa de Pantallas
 
 | Pantalla | Componente | Descripción |
 |---|---|---|
 | **P1** | `P1_HomeScreen` | **Buscador Anónimo:** Barra de búsqueda unificada, chips `[Alias] [CBU] [Tel] [Local]`, mapa interactivo ocupando el 70% de la pantalla con pines por veracidad, botón flotante (FAB) circular oscuro con `+` (conduce a P3 o P4 según login). Acceso U0 libre. |
 | **P2** | `P2_ReportDetailScreen` | **Detalle de Incidencia:** Título (ej. "Alias: ju.mp"), indicador semáforo visual, barra de veracidad al 80%, mapa de ubicación, 2 recuadros de fotos con evidencias enmascaradas y botón "Denunciar mismo objetivo". |
 | **P3** | `P3_LegalAuthScreen` | **Gate Login & DDJJ:** Ícono de candado/usuario, *"Para denunciar necesitás identificarte"*, botón *"Continuar con Google"* y checkbox obligatorio de Declaración Jurada y Términos. |
-| **P4** | `P4_CreateReportScreen` | **Formulario Paso 1:** Selectores desplegables (Categoría, Tipo de Identificador), valor, relato, mapa para fijar el pin y panel inferior fijo con *"Credibilidad: 20%"* y botón secundario *"Siguiente"*. |
+| **P4** | `P4_CreateReportScreen` | **Formulario Paso 1:** Selectores desplegables (Categoría, Tipo de Identificador), valor, relato, mapa para fijar el pin y panel inferior fijo con *"Credibilidad: 20%"* y botón secundario *"Siguiente"*. Incluye el error de validación de CBU (ex P6, ahora unificado). |
 | **P5** | `P5_OCRValidationScreen` | **Evidencias Paso 2:** Botones grandes delineados con `+` ("Subir captura", "Subir comprobante"), aviso *"Validando OCR..."*, panel inferior dinámico con *"Credibilidad: 80%"* y botón principal oscuro *"Enviar Reporte"*. |
-| **P6** | `P6_ValidationErrorScreen` | **Error de Validación:** Duplica la interfaz de P4, resalta con borde grueso y oscuro el campo de CBU inválido con el texto *"Ingresá un CBU válido. Tus demás datos se guardaron"*. |
 | **P7** | `P7_OfflineModal` | **Falla Técnica / Offline:** Pantalla P5 oscurecida con modal flotante: *"No hay conexión. Se guardó un borrador"*, botones *"Reintentar"* y *"Ver Mis Borradores"* integrados con `AsyncStorage`. |
-| **P8** | `P8_ConfirmationScreen` | **Confirmación de Envío:** Círculo grande con check de éxito, textos informativos *"Código: AT-2026-XXXX"* y *"Credibilidad final: 80%"*, botones *"Seguir estado"* y *"Volver al inicio"*. |
+| **P8** | `P8_ConfirmationScreen` | **Confirmación de Envío:** Círculo grande con check de éxito, textos informativos *"Código: AT-2026-XXXXXX"* y *"Credibilidad final: 80%"*, botones *"Seguir estado"* y *"Volver al inicio"*. |
 | **P9** | `P9_CredibilityPanelScreen` | **Panel "Mi Credibilidad":** Checklist interactivo de 3 ítems (Cuenta Google verificada, Teléfono verificado +15% con SMS OTP, DNI verificado +10% con documento OCR) y gráfico explicativo de la fórmula matemática RG-07. |
+| **P10** | `P10_MisDenunciasScreen` | **Mis Denuncias:** Listado con filtros por estado (Todas, Publicadas, En Disputa, Resueltas) y acceso a la edición. |
+| **P11** | `P11_TrackingCodeScreen` | **Consulta Pública:** Consulta del estado por código `AT-2026-XXXXXX` sin iniciar sesión. |
+| **P12** | `P12_EditReportScreen` | **Editar Denuncia:** Corrección de datos dentro de las 24hs, con cuenta regresiva y eliminación lógica justificada. |
+| **P13** | `P13_SearchResultsScreen` | **Resultados:** Búsqueda con filtros avanzados (tipo, categoría, score mínimo, fechas) y scroll infinito. |
+| **P20** | `P20_SettingsScreen` | **Ajustes:** Cierre de sesión, factores de identidad y solicitud de baja de datos (Ley 25.326). |
+
+> La antigua **P6 (Error de Validación)** se unificó en `P4_CreateReportScreen`
+> mediante el parámetro `validationError`, eliminando la pantalla duplicada.
 
 ---
 

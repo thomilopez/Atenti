@@ -17,6 +17,30 @@
       ]
     },
     {
+      "collectionGroup": "denuncias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "valorNormalizado", "order": "ASCENDING" },
+        { "fieldPath": "_serverTimestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "denuncias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "_serverTimestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "denuncias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "estadoActual", "order": "ASCENDING" },
+        { "fieldPath": "credibilityScore", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "objetivos",
       "queryScope": "COLLECTION",
       "fields": [{ "fieldPath": "valorNormalizado", "order": "ASCENDING" }]

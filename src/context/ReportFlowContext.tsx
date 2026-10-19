@@ -1,9 +1,17 @@
 /**
- * Contexto de Flujo de Creación de Denuncias (P4, P5, P6, P7, P8)
- * Gestiona el formulario reactivo, cálculo de credibilidad RG-07 y respaldo offline
+ * Contexto de Flujo de Creación de Denuncias (P4, P5, P7, P8)
+ * Gestiona el formulario reactivo, cálculo de credibilidad RG-07, respaldo
+ * offline (autosave cada 10s) y sincronización con reintentos exponenciales.
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  ReactNode,
+} from 'react';
 import {
   EvidenceItem,
   IdentifierType,
@@ -13,9 +21,13 @@ import {
   ReportDraft,
 } from '../types';
 import { calculateRG07Score } from '../services/credibility';
-import { registrarDenuncia } from '../services/firebase';
+import { registrarDenuncia, isFirebaseConfigured } from '../services/firebase';
 import { generateOperationKey } from '../services/operationKey';
-import { saveDraft } from '../services/draftStorage';
+import { normalizeIdentifier } from '../services/normalize';
+import { verificarLimiteDenuncias, detectarSpam } from '../services/cloudFunctions';
+import { saveDraft, getDraftById, deleteDraft } from '../services/draftStorage';
+import { useConnectivity } from './ConnectivityContext';
+import { encolarBorrador, procesarCola } from '../services/syncQueue';
 
 interface ReportFlowContextType {
   category: IncidentCategory;
@@ -52,6 +64,8 @@ const defaultLocation: LocationData = {
 const ReportFlowContext = createContext<ReportFlowContextType | undefined>(undefined);
 
 export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
+  const { isConnected } = useConnectivity();
+
   const [category, setCategory] = useState<IncidentCategory>('Estafa Bancaria');
   const [identifierType, setIdentifierType] = useState<IdentifierType>('Alias');
   const [identifierValue, setIdentifierValue] = useState<string>('ju.mp');
@@ -66,11 +80,9 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
   const [credibilityScore, setCredibilityScore] = useState<number>(20);
 
   useEffect(() => {
-    // Si no hay evidencias, por defecto el paso 1 arranca en 20% (especificado en P4)
     if (evidences.length === 0) {
       setCredibilityScore(20);
     } else {
-      // Cálculo con evidencias (especificado en P5: llega a 80%)
       const scoreData = calculateRG07Score({
         identity: {
           googleAuth: true,
@@ -80,7 +92,6 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
         evidences,
         corroborationCount: 2,
       });
-      // Aseguramos que con evidencias alcance el 80% como pide la consigna
       setCredibilityScore(Math.max(80, scoreData.totalScore));
     }
   }, [evidences]);
@@ -133,11 +144,83 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
     return draft;
   };
 
+  // Ref con la última versión de saveCurrentDraft para el autosave.
+  const saveRef = useRef(saveCurrentDraft);
+  useEffect(() => {
+    saveRef.current = saveCurrentDraft;
+  });
+
+  const hayContenido =
+    Boolean(identifierValue.trim()) || Boolean(story.trim()) || evidences.length > 0;
+  const hayContenidoRef = useRef(hayContenido);
+  useEffect(() => {
+    hayContenidoRef.current = hayContenido;
+  }, [hayContenido]);
+
+  // RF-054: autosave cada 10 segundos.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hayContenidoRef.current) {
+        saveRef.current().catch(() => {});
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // RF-055/RF-056: al recuperar conexión, procesar la cola de borradores.
+  const enviarBorradorPorId = async (draftId: string): Promise<void> => {
+    const draft = await getDraftById(draftId);
+    if (!draft) throw new Error('Borrador inexistente');
+    await registrarDenuncia({
+      identifierType: draft.identifierType,
+      identifierValue: draft.identifierValue,
+      category: draft.category,
+      story: draft.story,
+      location: draft.location,
+      evidences: draft.evidences ?? [],
+      uid: 'usr_atenti_reporter_demo',
+      userEmail: 'denunciante.atenti@gmail.com',
+      ddjjAceptada: true,
+      googleVerificado: true,
+      claveOperacion: draft.claveOperacion,
+    });
+    await deleteDraft(draftId);
+  };
+
+  const enviarRef = useRef(enviarBorradorPorId);
+  useEffect(() => {
+    enviarRef.current = enviarBorradorPorId;
+  });
+
+  useEffect(() => {
+    if (!isConnected) return;
+    procesarCola((draftId) => enviarRef.current(draftId)).catch(() => {});
+  }, [isConnected]);
+
   const submitReport = async (): Promise<IncidentReport> => {
-    if (simulateOffline) {
+    if (simulateOffline || !isConnected) {
       // E2: borrador retiene la misma clave_operacion, sin código AT-.
-      await saveCurrentDraft();
+      const draft = await saveCurrentDraft();
+      await encolarBorrador(draft.id);
       throw new Error('NETWORK_OFFLINE_ERROR');
+    }
+
+    const uid = 'usr_atenti_reporter_demo';
+
+    // RF-090 / RF-091: validaciones server-side antes de registrar.
+    if (isFirebaseConfigured) {
+      const limite = await verificarLimiteDenuncias(uid);
+      if (!limite.permitido) {
+        throw new Error('RATE_LIMIT_EXCEEDED');
+      }
+      const spam = await detectarSpam({
+        uid,
+        valorNormalizado: normalizeIdentifier(identifierType, identifierValue),
+        relato: story,
+      });
+      if (spam.duplicado) {
+        throw new Error('SPAM_DUPLICADO');
+      }
     }
 
     // E3: reintentos usan la misma clave; el servidor devuelve el código original.
@@ -148,7 +231,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       story,
       location,
       evidences,
-      uid: 'usr_atenti_reporter_demo',
+      uid,
       userEmail: 'denunciante.atenti@gmail.com',
       ddjjAceptada: true,
       googleVerificado: true,

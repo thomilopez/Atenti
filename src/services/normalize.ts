@@ -41,6 +41,45 @@ export function corroborationScoreFor(countHistoricMatches: number): number {
   return 0;
 }
 
+/**
+ * RF-088: valida el checksum del CBU (22 dígitos en dos bloques de 8 y 14).
+ */
+export function validarCbu(valor: string): boolean {
+  const digitos = (valor ?? '').replace(/\D/g, '');
+  if (digitos.length !== 22) return false;
+
+  const bloque1 = digitos.slice(0, 8);
+  const bloque2 = digitos.slice(8);
+
+  return (
+    validarBloqueCbu(bloque1, [7, 1, 3, 9, 7, 1, 3]) &&
+    validarBloqueCbu(bloque2, [3, 9, 7, 1, 3, 9, 7, 1, 3, 9, 7, 1, 3])
+  );
+}
+
+function validarBloqueCbu(bloque: string, pesos: number[]): boolean {
+  let suma = 0;
+  for (let i = 0; i < pesos.length; i++) {
+    suma += Number(bloque[i]) * pesos[i];
+  }
+  const verificador = (10 - (suma % 10)) % 10;
+  return verificador === Number(bloque[pesos.length]);
+}
+
+/** RF-089: valida que un teléfono argentino quede en formato E.164. */
+export function validarTelefonoE164(valor: string): boolean {
+  const normalizado = normalizeIdentifier('Tel', valor);
+  return /^\+54\d{10,11}$/.test(normalizado);
+}
+
+/** Valida el identificador según su tipo (CBU con checksum, Tel E.164). */
+export function validarIdentificador(type: IdentifierType, valor: string): boolean {
+  if (!valor.trim()) return false;
+  if (type === 'CBU') return validarCbu(valor);
+  if (type === 'Tel') return validarTelefonoE164(valor);
+  return true;
+}
+
 export interface CategoriaTipo {
   id: string;
   nombre: string;

@@ -42,15 +42,20 @@ import {
   checkInvarianteI05,
 } from './stateMachine';
 import { toPublicProjection, PublicIncidentProjection } from './masking';
+import { env, hasRealFirebaseConfig } from './env';
 
-// Configuración de Firebase (Puede sobreescribirse con variables de entorno)
+/** Indica si la app corre con credenciales reales de Firebase o en modo demo. */
+export const isFirebaseConfigured = hasRealFirebaseConfig();
+
+// Configuración de Firebase. Usa variables de entorno; si no están definidas
+// arranca en modo demo con valores placeholders y fallback en memoria.
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDemoAtentiApiKey2026ArgentinaMVP',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'atenti-argentina-mvp.firebaseapp.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'atenti-argentina-mvp',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'atenti-argentina-mvp.appspot.com',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '928374829103',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:928374829103:web:7823abce9012837',
+  apiKey: env.firebase.apiKey || 'AIzaSyDemoAtentiApiKey2026ArgentinaMVP',
+  authDomain: env.firebase.authDomain || 'atenti-argentina-mvp.firebaseapp.com',
+  projectId: env.firebase.projectId || 'atenti-argentina-mvp',
+  storageBucket: env.firebase.storageBucket || 'atenti-argentina-mvp.appspot.com',
+  messagingSenderId: env.firebase.messagingSenderId || '928374829103',
+  appId: env.firebase.appId || '1:928374829103:web:7823abce9012837',
 };
 
 // Inicialización de la App Firebase
@@ -248,27 +253,18 @@ export const INITIAL_SEED_INCIDENTS: IncidentReport[] = [
 let inMemoryIncidents: IncidentReport[] = [...INITIAL_SEED_INCIDENTS];
 
 /**
- * Obtiene todas las incidencias (filtradas opcionalmente por tipo de identificador o texto de búsqueda)
+ * Filtra una lista de incidencias por tipo de identificador y texto de búsqueda.
+ * Por defecto excluye eliminadas y EN_DISPUTA (RF-065).
  */
-export async function getIncidents(filterType?: IdentifierType, searchQuery?: string): Promise<IncidentReport[]> {
-  try {
-    // Intentar leer de Firestore
-    const incidentsCol = collection(db, 'incidents');
-    const snapshot = await getDocs(incidentsCol);
-    if (!snapshot.empty) {
-      const docs = snapshot.docs.map((docSnap) => docSnap.data() as IncidentReport);
-      // Mezclar con iniciales si faltan
-      const map = new Map<string, IncidentReport>();
-      inMemoryIncidents.forEach((i) => map.set(i.id, i));
-      docs.forEach((i) => map.set(i.id, i));
-      inMemoryIncidents = Array.from(map.values());
-    }
-  } catch (error) {
-    // Modo offline o fallback de desarrollo
-    // Usamos el estado en memoria
-  }
-
-  return inMemoryIncidents.filter((inc) => {
+function aplicarFiltros(
+  lista: IncidentReport[],
+  filterType?: IdentifierType,
+  searchQuery?: string,
+  incluirEnDisputa = false
+): IncidentReport[] {
+  return lista.filter((inc) => {
+    if (inc.eliminada) return false;
+    if (!incluirEnDisputa && inc.estadoActual === 'EN_DISPUTA') return false;
     if (filterType && inc.identifierType !== filterType) {
       return false;
     }
@@ -282,6 +278,98 @@ export async function getIncidents(filterType?: IdentifierType, searchQuery?: st
     }
     return true;
   });
+}
+
+/**
+ * Obtiene las incidencias. Lee de Firestore como fuente principal (solo
+ * PUBLICADAS y no eliminadas) y usa el fallback en memoria solo si Firestore
+ * no está configurado o falla.
+ */
+export async function getIncidents(
+  filterType?: IdentifierType,
+  searchQuery?: string,
+  opciones?: { incluirEnDisputa?: boolean }
+): Promise<IncidentReport[]> {
+  const incluirEnDisputa = opciones?.incluirEnDisputa ?? false;
+
+  if (isFirebaseConfigured) {
+    try {
+      const q = query(
+        collection(db, 'denuncias'),
+        where('estadoActual', '==', 'PUBLICADA')
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const docs = snapshot.docs.map(
+          (d) => ({ id: d.id, ...(d.data() as Omit<IncidentReport, 'id'>) } as IncidentReport)
+        );
+        inMemoryIncidents = docs;
+        return aplicarFiltros(docs, filterType, searchQuery, incluirEnDisputa);
+      }
+    } catch (error) {
+      console.warn('getIncidents: Firestore no disponible, uso fallback en memoria:', error);
+    }
+  }
+
+  return aplicarFiltros(inMemoryIncidents, filterType, searchQuery, incluirEnDisputa);
+}
+
+export interface BusquedaPaginadaParams {
+  filterType?: IdentifierType;
+  searchQuery?: string;
+  desde?: string;
+  hasta?: string;
+  categoria?: IncidentCategory;
+  scoreMinimo?: number;
+  pagina?: number;
+  porPagina?: number;
+  incluirEnDisputa?: boolean;
+}
+
+export interface ResultadoPaginado {
+  items: IncidentReport[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+  hayMas: boolean;
+}
+
+/** RF-062/RF-063: filtros avanzados + paginación para la búsqueda pública. */
+export async function buscarIncidentesPaginados(
+  params: BusquedaPaginadaParams
+): Promise<ResultadoPaginado> {
+  const todos = await getIncidents(params.filterType, params.searchQuery, {
+    incluirEnDisputa: params.incluirEnDisputa,
+  });
+
+  const desde = params.desde ? new Date(params.desde).getTime() : null;
+  const hasta = params.hasta ? new Date(params.hasta).getTime() : null;
+
+  const filtrados = todos.filter((inc) => {
+    if (params.categoria && inc.category !== params.categoria) return false;
+    if (typeof params.scoreMinimo === 'number' && inc.credibilityScore < params.scoreMinimo) {
+      return false;
+    }
+    if (desde !== null || hasta !== null) {
+      const creado = new Date(inc.audit.createdAt).getTime();
+      if (desde !== null && creado < desde) return false;
+      if (hasta !== null && creado > hasta) return false;
+    }
+    return true;
+  });
+
+  const pagina = Math.max(1, params.pagina ?? 1);
+  const porPagina = Math.max(1, params.porPagina ?? 10);
+  const inicio = (pagina - 1) * porPagina;
+  const items = filtrados.slice(inicio, inicio + porPagina);
+
+  return {
+    items,
+    total: filtrados.length,
+    pagina,
+    porPagina,
+    hayMas: inicio + porPagina < filtrados.length,
+  };
 }
 
 /**
@@ -537,6 +625,7 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
     credibilityBreakdown: { ...breakdown, totalScore: pct },
     corroborationCount,
     audit,
+    eliminada: false,
     status: destino === 'PUBLICADA' ? 'publicada' : 'en_revision',
   };
 
@@ -619,16 +708,65 @@ export function getHistorial(denunciaId: string): HistorialEvento[] {
   return [...(historialByDenuncia.get(denunciaId) ?? [])];
 }
 
+/** Busca una denuncia por id en el índice en memoria. */
+export function obtenerDenuncia(denunciaId: string): IncidentReport | null {
+  return inMemoryIncidents.find((i) => i.id === denunciaId) ?? null;
+}
+
+/**
+ * RF-023: corrige los datos de una denuncia propia dentro de la ventana de 24hs.
+ * No es una transición de estado, por lo que registra un evento de auditoría
+ * de tipo EDICION sin tocar la máquina de estados.
+ */
+export async function actualizarDenuncia(params: {
+  denunciaId: string;
+  cambios: Partial<Pick<IncidentReport, 'category' | 'story' | 'location' | 'identifierValue'>>;
+  actorId: string;
+  motivo: string;
+}): Promise<IncidentReport> {
+  const reporte = obtenerDenuncia(params.denunciaId);
+  if (!reporte) throw new Error('Denuncia no encontrada');
+
+  Object.assign(reporte, params.cambios);
+
+  if (isFirebaseConfigured) {
+    try {
+      const batch = writeBatch(db);
+      batch.set(
+        doc(db, 'denuncias', params.denunciaId),
+        {
+          ...params.cambios,
+          editadaEn: new Date().toISOString(),
+          _serverTimestamp: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      batch.set(doc(db, 'historialEstado', `edit_${Date.now()}`), {
+        denunciaId: params.denunciaId,
+        tipo: 'EDICION',
+        actorId: params.actorId,
+        motivo: params.motivo,
+        timestamp: serverTimestamp(),
+      });
+      await batch.commit();
+    } catch (e) {
+      console.warn('actualizarDenuncia: Firestore no disponible, actualizo en memoria:', e);
+    }
+  }
+
+  return reporte;
+}
+
 /** T04: proyección pública (RG-08/I-07). Oculta EN_DISPUTA del buscador. */
 export function consultarAntecedentePublico(codigo: string): PublicIncidentProjection | null {
   const rep = inMemoryIncidents.find((i) => i.trackingCode === codigo);
-  if (!rep || rep.estadoActual === 'EN_DISPUTA') return null;
+  if (!rep || rep.eliminada || rep.estadoActual === 'EN_DISPUTA') return null;
   return toPublicProjection(rep);
 }
 
 export function listarAntecedentesPublicos(): PublicIncidentProjection[] {
   return inMemoryIncidents
-    .filter((i) => i.estadoActual === 'PUBLICADA')
+    .filter((i) => !i.eliminada && i.estadoActual === 'PUBLICADA')
     .map((i) => toPublicProjection(i));
 }
 

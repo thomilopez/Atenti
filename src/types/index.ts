@@ -79,6 +79,8 @@ export interface IncidentReport {
   credibilityBreakdown: CredibilityBreakdown;
   corroborationCount: number;
   audit: AuditMetadata;
+  /** RF-024: borrado lógico; la denuncia deja de ser visible públicamente. */
+  eliminada?: boolean;
   status: 'publicada' | 'en_revision' | 'desestimada';
 }
 
@@ -106,14 +108,24 @@ export interface UserProfile {
   dniNumber?: string;
 }
 
+export interface ValidationErrorInfo {
+  field: string;
+  message: string;
+  invalidValue: string;
+}
+
 export type RootStackParamList = {
   P1_Home: undefined;
   P2_ReportDetail: { incident: IncidentReport };
   P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' } | undefined;
-  P4_CreateReport: { prefilledIdentifier?: { type: IdentifierType; value: string }; draftId?: string } | undefined;
+  P4_CreateReport: { prefilledIdentifier?: { type: IdentifierType; value: string }; draftId?: string; validationError?: ValidationErrorInfo } | undefined;
   P5_OCRValidation: undefined;
-  P6_ValidationError: { field: string; message: string; invalidValue: string };
   P7_OfflineModal: { draftId?: string } | undefined;
   P8_Confirmation: { trackingCode: string; finalScore: number; incidentId: string };
   P9_CredibilityPanel: undefined;
+  P10_MisDenuncias: undefined;
+  P11_TrackingCode: { codigo?: string } | undefined;
+  P12_EditReport: { incident: IncidentReport };
+  P13_SearchResults: { initialQuery?: string; initialType?: IdentifierType } | undefined;
+  P20_Settings: undefined;
 };

@@ -1,95 +1,90 @@
 /**
  * Contexto Global de Autenticación e Identidad (Atenti)
- * Gestión de sesión Firebase Auth / Google y estados de verificación de identidad para RG-07
+ * Gestiona la sesión real de Firebase Auth / Google y los estados de
+ * verificación de identidad para RG-07.
  */
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { UserIdentityFactors, UserProfile } from '../types';
+import {
+  authService,
+  SesionUsuario,
+  EstadoDNI,
+  ResultadoVerificacionDNI,
+  logout as cerrarSesion,
+} from '../services/authService';
 
 interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
   identityFactors: UserIdentityFactors;
+  dniEstado: EstadoDNI;
   loginWithGoogle: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   verifyPhone: (phoneNumber: string, code: string) => Promise<boolean>;
-  verifyDNI: (dniNumber: string) => Promise<boolean>;
+  verifyDNI: (dniNumber: string) => Promise<ResultadoVerificacionDNI>;
   calculateMyIdentityScore: () => number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<UserProfile | null>({
-    uid: 'usr_atenti_google_demo',
-    email: 'martin.rodriguez@gmail.com',
-    displayName: 'Martín Rodríguez',
-    photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-    phoneNumber: '+54 9 11 4455-8899',
-    dniNumber: '38.412.905',
-    identityFactors: {
-      googleAuth: true,
-      phoneVerified: false,
-      dniVerified: false,
-    },
-  });
+const FACTORES_VACIOS: UserIdentityFactors = {
+  googleAuth: false,
+  phoneVerified: false,
+  dniVerified: false,
+};
 
-  const identityFactors = user?.identityFactors || {
-    googleAuth: false,
-    phoneVerified: false,
-    dniVerified: false,
+function aPerfil(sesion: SesionUsuario): UserProfile {
+  return {
+    uid: sesion.uid,
+    email: sesion.email,
+    displayName: sesion.displayName,
+    photoURL: sesion.photoURL,
+    phoneNumber: sesion.phoneNumber,
+    identityFactors: { ...FACTORES_VACIOS, googleAuth: true },
   };
+}
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [dniEstado, setDniEstado] = useState<EstadoDNI>('verificando');
+
+  const identityFactors = user?.identityFactors || FACTORES_VACIOS;
 
   const loginWithGoogle = async () => {
-    // Simula flujo de Google Sign-In mediante Firebase Auth
-    await new Promise((res) => setTimeout(res, 800));
-    setUser({
-      uid: 'usr_atenti_google_' + Date.now(),
-      email: 'usuario.atenti@gmail.com',
-      displayName: 'Usuario Atenti Verificado',
-      photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-      identityFactors: {
-        googleAuth: true,
-        phoneVerified: false,
-        dniVerified: false,
-      },
-    });
+    const sesion = await authService.signInWithGoogle();
+    setUser(aPerfil(sesion));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await cerrarSesion();
     setUser(null);
+    setDniEstado('verificando');
   };
 
   const verifyPhone = async (phoneNumber: string, code: string): Promise<boolean> => {
-    await new Promise((res) => setTimeout(res, 900));
-    if (user) {
+    const ok = await authService.verifyPhone(phoneNumber, code);
+    if (user && ok) {
       setUser({
         ...user,
         phoneNumber,
-        identityFactors: {
-          ...user.identityFactors,
-          phoneVerified: true,
-        },
+        identityFactors: { ...user.identityFactors, phoneVerified: true },
       });
-      return true;
     }
-    return false;
+    return ok;
   };
 
-  const verifyDNI = async (dniNumber: string): Promise<boolean> => {
-    await new Promise((res) => setTimeout(res, 1200));
-    if (user) {
+  const verifyDNI = async (dniNumber: string): Promise<ResultadoVerificacionDNI> => {
+    const resultado = await authService.verifyDNI(dniNumber);
+    setDniEstado(resultado.estado);
+    if (user && resultado.estado === 'verificado') {
       setUser({
         ...user,
         dniNumber,
-        identityFactors: {
-          ...user.identityFactors,
-          dniVerified: true,
-        },
+        identityFactors: { ...user.identityFactors, dniVerified: true },
       });
-      return true;
     }
-    return false;
+    return resultado;
   };
 
   const calculateMyIdentityScore = (): number => {
@@ -106,6 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         isAuthenticated: !!user && user.identityFactors.googleAuth,
         identityFactors,
+        dniEstado,
         loginWithGoogle,
         logout,
         verifyPhone,

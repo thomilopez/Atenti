@@ -12,6 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EvidenceItem, RootStackParamList } from '../types';
 import { useReportFlow } from '../context/ReportFlowContext';
@@ -44,23 +45,44 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
     try {
       setOcrLoading(true);
 
+      let uri: string | undefined;
+      let base64: string | undefined;
       const demoUri =
         type === 'chat_screenshot'
           ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400'
           : 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400';
 
+      // RF-028/RF-034: selección real desde la galería con base64 para el OCR.
+      try {
+        const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permiso.granted) {
+          const resultado = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            base64: true,
+            quality: 0.7,
+          });
+          if (!resultado.canceled && resultado.assets[0]) {
+            uri = resultado.assets[0].uri;
+            base64 = resultado.assets[0].base64 ?? undefined;
+          }
+        }
+      } catch (pickerError) {
+        // En web o sin permisos se usa la imagen demo.
+      }
+
       const ocrResult = await processEvidenceOCR(
         type,
         identifierType,
         identifierValue,
-        demoUri
+        uri ?? demoUri,
+        base64
       );
 
       const newEvidence: EvidenceItem = {
         id: `ev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         type,
         label: type === 'chat_screenshot' ? 'Captura de Chat' : 'Comprobante de Transferencia',
-        uri: demoUri,
+        uri: uri ?? demoUri,
         ocrExtractedText: ocrResult.extractedText,
         ocrMatched: ocrResult.matched,
         ocrConfidence: ocrResult.confidence,
@@ -88,7 +110,20 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
       });
     } catch (error: any) {
       setSubmitting(false);
-      setShowOfflineModal(true);
+      const mensaje = error?.message ?? '';
+      if (mensaje === 'RATE_LIMIT_EXCEEDED') {
+        Alert.alert(
+          'Límite diario alcanzado',
+          'Alcanzaste el máximo de denuncias por día. Volvé a intentarlo mañana.'
+        );
+      } else if (mensaje === 'SPAM_DUPLICADO') {
+        Alert.alert(
+          'Posible duplicado',
+          'Detectamos una denuncia muy similar reciente. Revisá tu reporte antes de enviarlo.'
+        );
+      } else {
+        setShowOfflineModal(true);
+      }
     }
   };
 

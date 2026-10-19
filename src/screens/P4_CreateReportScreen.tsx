@@ -15,6 +15,7 @@ import { IdentifierType, IncidentCategory, RootStackParamList } from '../types';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { validarCbu, validarTelefonoE164 } from '../services/normalize';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
 
@@ -46,6 +47,8 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [identifierDropdownOpen, setIdentifierDropdownOpen] = useState(false);
 
+  const validationError = route.params?.validationError;
+
   useEffect(() => {
     if (route.params?.prefilledIdentifier) {
       setIdentifierType(route.params.prefilledIdentifier.type);
@@ -54,18 +57,26 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
   }, [route.params]);
 
   const handleNext = async () => {
-    // Si el CBU no tiene 22 dígitos numéricos, disparamos P6
-    if (identifierType === 'CBU') {
-      const cleanCbu = identifierValue.replace(/\D/g, '');
-      if (cleanCbu.length !== 22) {
-        await saveCurrentDraft();
-        navigation.navigate('P6_ValidationError', {
+    // RF-088: el CBU debe tener 22 dígitos y checksum válido.
+    if (identifierType === 'CBU' && !validarCbu(identifierValue)) {
+      await saveCurrentDraft();
+      navigation.replace('P4_CreateReport', {
+        validationError: {
           field: 'CBU',
           message: 'Ingresá un CBU válido. Tus demás datos se guardaron',
           invalidValue: identifierValue,
-        });
-        return;
-      }
+        },
+      });
+      return;
+    }
+
+    // RF-089: el teléfono debe quedar en formato E.164.
+    if (identifierType === 'Tel' && !validarTelefonoE164(identifierValue)) {
+      Alert.alert(
+        'Teléfono inválido',
+        'Ingresá un teléfono argentino válido (podés usar 0, 15 o +54).'
+      );
+      return;
     }
 
     if (!identifierValue.trim()) {
@@ -182,17 +193,21 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
         {/* Input del valor del Identificador */}
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>Identificador afectado</Text>
-          <View style={styles.inputBox}>
+          <View style={validationError ? styles.inputBoxError : styles.inputBox}>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, validationError && styles.textInputError]}
               placeholder={identifierType === 'CBU' ? '22 dígitos de CBU' : 'ej: ju.mp'}
               placeholderTextColor="#94A3B8"
               value={identifierValue}
               onChangeText={setIdentifierValue}
               keyboardType={identifierType === 'CBU' || identifierType === 'Tel' ? 'numeric' : 'default'}
               autoCapitalize="none"
+              autoFocus={Boolean(validationError)}
             />
           </View>
+          {validationError && (
+            <Text style={styles.errorHelpText}>{validationError.message}</Text>
+          )}
         </View>
 
         {/* Una caja de texto grande (Relato) */}
@@ -332,6 +347,24 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  // Borde grueso oscuro para el error de validación (unifica el comportamiento de P6)
+  inputBoxError: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#000000',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  errorHelpText: {
+    fontSize: 11,
+    color: '#DC2626',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  textInputError: {
+    fontWeight: '700',
   },
   textInput: {
     fontSize: 14,

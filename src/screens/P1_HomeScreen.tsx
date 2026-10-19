@@ -71,6 +71,12 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCapitalize="none"
+            onSubmitEditing={() =>
+              navigation.navigate('P13_SearchResults', {
+                initialQuery: searchQuery,
+                initialType: selectedChip ?? undefined,
+              })
+            }
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>

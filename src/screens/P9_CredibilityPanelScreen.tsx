@@ -26,6 +26,7 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
     verifyPhone,
     verifyDNI,
     calculateMyIdentityScore,
+    dniEstado,
   } = useAuth();
 
   // Modales interactivos
@@ -54,10 +55,16 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleConfirmDNI = async () => {
     setDniLoading(true);
-    await verifyDNI(dniInput);
+    const resultado = await verifyDNI(dniInput);
     setDniLoading(false);
     setDniModalVisible(false);
-    Alert.alert('¡Verificado!', 'Se han sumado +10% a tu nivel de credibilidad.');
+    if (resultado.estado === 'verificado') {
+      Alert.alert('¡Verificado!', 'Se han sumado +10% a tu nivel de credibilidad.');
+    } else if (resultado.estado === 'verificando') {
+      Alert.alert('Verificando', resultado.mensaje);
+    } else {
+      Alert.alert('No verificado', resultado.mensaje);
+    }
   };
 
   return (
@@ -118,6 +125,11 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
             {identityFactors.dniVerified ? (
               <View style={styles.checkBadge}>
                 <Ionicons name="checkmark" size={16} color="#000000" />
+              </View>
+            ) : dniEstado === 'verificando' ? (
+              <View style={styles.pendingBadge}>
+                <ActivityIndicator size="small" color="#0F172A" />
+                <Text style={styles.pendingBadgeText}>Verificando</Text>
               </View>
             ) : (
               <TouchableOpacity
@@ -359,6 +371,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
+  },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  pendingBadgeText: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '700',
   },
   // Abajo: Un gráfico de torta simple o líneas simulando la explicación de la fórmula
   formulaSection: {
