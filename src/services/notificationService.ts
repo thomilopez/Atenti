@@ -7,7 +7,12 @@
 import { collection, doc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 
-export type TipoNotificacion = 'IMPUGNACION' | 'DISPUTA_RESUELTA' | 'ESCALADA';
+export type TipoNotificacion =
+  | 'IMPUGNACION'
+  | 'DISPUTA_RESUELTA'
+  | 'ESCALADA'
+  | 'CORROBORACION'
+  | 'CAMBIO_ESTADO';
 
 export interface Notificacion {
   id: string;

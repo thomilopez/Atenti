@@ -20,12 +20,14 @@ import { P15_AdminDisputeScreen } from '../screens/P15_AdminDisputeScreen';
 import { P16_AdminCategoriesScreen } from '../screens/P16_AdminCategoriesScreen';
 import { P17_AdminUsersScreen } from '../screens/P17_AdminUsersScreen';
 import { P18_AdminAuditScreen } from '../screens/P18_AdminAuditScreen';
+import { P19_NotificationCenterScreen } from '../screens/P19_NotificationCenterScreen';
 import { P20_SettingsScreen } from '../screens/P20_SettingsScreen';
 import { P21_ImpugnacionScreen } from '../screens/P21_ImpugnacionScreen';
 import { P22_DisputeStatusScreen } from '../screens/P22_DisputeStatusScreen';
 import { P23_LegalScreen } from '../screens/P23_LegalScreen';
 import { P24_RightToBeForgottenScreen } from '../screens/P24_RightToBeForgottenScreen';
 import { P25_AuditLogScreen } from '../screens/P25_AuditLogScreen';
+import { P26_NotificationPreferencesScreen } from '../screens/P26_NotificationPreferencesScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -93,6 +95,9 @@ export const AppNavigator: React.FC = () => {
         <Stack.Screen name="P17_AdminUsers" component={P17_AdminUsersScreen} />
         <Stack.Screen name="P18_AdminAudit" component={P18_AdminAuditScreen} />
 
+        {/* Notificaciones */}
+        <Stack.Screen name="P19_NotificationCenter" component={P19_NotificationCenterScreen} />
+
         {/* P20 - Ajustes */}
         <Stack.Screen name="P20_Settings" component={P20_SettingsScreen} />
 
@@ -104,6 +109,7 @@ export const AppNavigator: React.FC = () => {
         <Stack.Screen name="P23_Legal" component={P23_LegalScreen} />
         <Stack.Screen name="P24_RightToBeForgotten" component={P24_RightToBeForgottenScreen} />
         <Stack.Screen name="P25_AuditLog" component={P25_AuditLogScreen} />
+        <Stack.Screen name="P26_NotificationPreferences" component={P26_NotificationPreferencesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -14,6 +14,7 @@ import {
   ResultadoVerificacionDNI,
   logout as cerrarSesion,
 } from '../services/authService';
+import { registrarTokenPush } from '../services/pushService';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -63,6 +64,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loginWithGoogle = async () => {
     const sesion = await authService.signInWithGoogle();
     setUser(aPerfil(sesion));
+    // RF-077: registrar el token de push del dispositivo para el usuario.
+    registrarTokenPush(sesion.uid).catch(() => {});
   };
 
   const logout = async () => {

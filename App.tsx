@@ -8,10 +8,12 @@ import { ReportFlowProvider } from './src/context/ReportFlowContext';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { inicializarObservabilidad } from './src/services/observability';
+import { configurarNotificaciones } from './src/services/pushService';
 
 export default function App() {
   useEffect(() => {
     inicializarObservabilidad();
+    configurarNotificaciones();
   }, []);
 
   return (

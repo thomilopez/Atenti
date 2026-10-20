@@ -10,12 +10,14 @@
     "@react-navigation/native": "^7.3.18",
     "@react-navigation/native-stack": "^7.18.10",
     "expo": "~57.0.22",
+    "expo-constants": "~57.0.22",
     "expo-crypto": "~57.0.3",
     "expo-document-picker": "~57.0.3",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-image-picker": "~57.0.20",
     "expo-location": "~57.0.21",
+    "expo-notifications": "~57.0.23",
     "expo-print": "~57.0.2",
     "expo-sharing": "~57.0.23",
     "expo-splash-screen": "~57.0.9",
@@ -48,7 +50,8 @@
     "verify:evidencias": "node scripts/verify-evidencias.js",
     "verify:impugnaciones": "node scripts/verify-impugnaciones.js",
     "verify:legal": "node scripts/verify-legal.js",
-    "verify:all": "node scripts/verify-mvp.js && node scripts/verify-block-a.js && node scripts/verify-backend.js && node scripts/verify-denuncias.js && node scripts/verify-evidencias.js && node scripts/verify-impugnaciones.js && node scripts/verify-legal.js"
+    "verify:notificaciones": "node scripts/verify-notificaciones.js",
+    "verify:all": "node scripts/verify-mvp.js && node scripts/verify-block-a.js && node scripts/verify-backend.js && node scripts/verify-denuncias.js && node scripts/verify-evidencias.js && node scripts/verify-impugnaciones.js && node scripts/verify-legal.js && node scripts/verify-notificaciones.js"
   },
   "private": true
 }

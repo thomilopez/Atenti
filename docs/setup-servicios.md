@@ -437,3 +437,37 @@ Requiere un development build instalado en un emulador o dispositivo.
 
 En **Ajustes → Métricas de uso anónimas** el usuario da o revoca el
 consentimiento. Sin consentimiento no se registra ningún evento.
+
+---
+
+## 21. Notificaciones push
+
+1. **Project ID de EAS (requerido para el token):**
+   ```bash
+   npx eas init
+   ```
+   Copiá el `projectId` en `app.json`:
+   ```json
+   "extra": { "eas": { "projectId": "TU_PROJECT_ID" } }
+   ```
+   Sin projectId la app omite el registro del token y sigue funcionando.
+2. **Development build:** las notificaciones push remotas no funcionan en Expo
+   Go en SDK 57. Generá un build:
+   ```bash
+   npx expo prebuild
+   npx expo run:android
+   ```
+   El token se registra al iniciar sesión y se guarda en `push_tokens`.
+3. **Cloud Function de envío:** al crearse un documento en `notificaciones`, la
+   function `enviarPushNotificacion` consulta `notification_prefs` y envía el push
+   con Expo Push (`https://exp.host/--/api/v2/push/send`).
+   ```bash
+   firebase deploy --only functions
+   ```
+4. **Preferencias:** el usuario las gestiona en
+   **Ajustes → Preferencias de notificaciones** (estado, corroboración,
+   resolución). El centro completo está en **Notificaciones** (campana en P1).
+5. **Tipos de aviso:** cambio de estado (PUBLICADA, EN_DISPUTA, RESUELTA),
+   corroboración de un objetivo y resolución de disputa.
+
+> Los avisos in-app se guardan siempre, aunque el push esté deshabilitado o falle.

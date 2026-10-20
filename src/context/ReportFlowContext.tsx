@@ -32,6 +32,8 @@ import { useAuth } from './AuthContext';
 import { encolarBorrador, procesarCola } from '../services/syncQueue';
 import { registrarCambioScore } from '../services/scoreHistory';
 import { generarHashDDJJ } from '../services/ddjjService';
+import { crearNotificacion } from '../services/notificationService';
+import { notificarCorroboracion } from '../services/corroborationService';
 
 interface ReportFlowContextType {
   category: IncidentCategory;
@@ -270,6 +272,23 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
         motivo: 'Evidencias adjuntas',
       });
     }
+
+    // RF-077: avisar al denunciante que su reporte fue publicado.
+    if (reporte.estadoActual === 'PUBLICADA') {
+      await crearNotificacion({
+        uid,
+        tipo: 'CAMBIO_ESTADO',
+        mensaje: `Tu denuncia ${reporte.trackingCode} fue publicada.`,
+        denunciaId: reporte.id,
+      });
+    }
+
+    // RF-078: avisar a denunciantes previos sobre el mismo objetivo.
+    await notificarCorroboracion({
+      valorNormalizado: normalizeIdentifier(identifierType, identifierValue),
+      excludeUid: uid,
+      codigo: reporte.trackingCode,
+    }).catch(() => {});
 
     return reporte;
   };

@@ -180,6 +180,15 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
           >
             <Ionicons name="folder-outline" size={18} color="#0F172A" />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.draftsShortcut}
+            onPress={() => navigation.navigate('P19_NotificationCenter')}
+            accessibilityRole="button"
+            accessibilityLabel="Notificaciones"
+          >
+            <Ionicons name="notifications-outline" size={18} color="#0F172A" />
+          </TouchableOpacity>
         </View>
       </View>
 

@@ -148,6 +148,22 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
               </View>
             ))
           )}
+
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('P19_NotificationCenter')}
+          >
+            <Ionicons name="notifications-outline" size={18} color="#0F172A" />
+            <Text style={styles.actionText}>Ver todas las notificaciones</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('P26_NotificationPreferences')}
+          >
+            <Ionicons name="options-outline" size={18} color="#0F172A" />
+            <Text style={styles.actionText}>Preferencias de notificaciones</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>

@@ -138,10 +138,12 @@ export type RootStackParamList = {
   P16_AdminCategories: undefined;
   P17_AdminUsers: undefined;
   P18_AdminAudit: { incidentId: string };
+  P19_NotificationCenter: undefined;
   P20_Settings: undefined;
   P21_Impugnacion: { incident: IncidentReport };
   P22_DisputeStatus: { denunciaId: string };
   P23_Legal: undefined;
   P24_RightToBeForgotten: undefined;
   P25_AuditLog: undefined;
+  P26_NotificationPreferences: undefined;
 };

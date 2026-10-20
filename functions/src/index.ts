@@ -8,6 +8,7 @@
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
@@ -217,5 +218,77 @@ export const escalarImpugnaciones = onSchedule('every 15 minutes', async () => {
       leida: false,
       fecha: ahora.toISOString(),
     });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Push notifications (RF-077 a RF-080)
+// ---------------------------------------------------------------------------
+
+const PREF_DEFAULT = { estado: true, corroboracion: true, resolucion: true };
+
+function preferenciaParaTipo(
+  tipo: string,
+  prefs: { estado?: boolean; corroboracion?: boolean; resolucion?: boolean }
+): boolean {
+  switch (tipo) {
+    case 'CORROBORACION':
+      return prefs.corroboracion !== false;
+    case 'DISPUTA_RESUELTA':
+      return prefs.resolucion !== false;
+    case 'IMPUGNACION':
+    case 'CAMBIO_ESTADO':
+      return prefs.estado !== false;
+    default:
+      return true;
+  }
+}
+
+/**
+ * Al crearse una notificacion in-app, envia el push a los dispositivos del
+ * usuario si la preferencia del tipo esta habilitada.
+ */
+export const enviarPushNotificacion = onDocumentCreated('notificaciones/{id}', async (event) => {
+  const datos = event.data?.data();
+  if (!datos) return;
+
+  const uid = datos.uid as string | undefined;
+  if (!uid || uid === 'admin' || uid === 'anonimo') return;
+
+  const prefsSnap = await db.collection('notification_prefs').doc(uid).get();
+  const prefs = prefsSnap.exists
+    ? { ...PREF_DEFAULT, ...(prefsSnap.data() as Record<string, boolean>) }
+    : PREF_DEFAULT;
+
+  const tipo = String(datos.tipo ?? '');
+  if (!preferenciaParaTipo(tipo, prefs)) return;
+
+  const tokensSnap = await db.collection('push_tokens').where('uid', '==', uid).get();
+  if (tokensSnap.empty) return;
+
+  const mensajes = tokensSnap.docs
+    .map((d) => (d.data() as { token?: string }).token)
+    .filter((token): token is string => Boolean(token))
+    .map((token) => ({
+      to: token,
+      sound: 'default',
+      title: 'Atenti',
+      body: String(datos.mensaje ?? 'Tenés una nueva notificación'),
+      data: { denunciaId: datos.denunciaId ?? '', tipo },
+    }));
+
+  if (mensajes.length === 0) return;
+
+  try {
+    const respuesta = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(mensajes),
+    });
+    if (!respuesta.ok) {
+      console.warn('enviarPushNotificacion: respuesta', respuesta.status, await respuesta.text());
+    }
+  } catch (e) {
+    console.warn('enviarPushNotificacion: error de envío', e);
   }
 });
