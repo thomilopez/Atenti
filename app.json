@@ -8,12 +8,20 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Atenti necesita tu ubicación para reportar y visualizar alertas de fraudes cercanos.",
         "NSPhotoLibraryUsageDescription": "Permite adjuntar capturas y comprobantes como evidencia del reporte."
       }
     },
     "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/android-icon-foreground.png",

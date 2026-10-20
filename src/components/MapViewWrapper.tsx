@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Platform,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { IncidentReport, LocationData } from '../types';
@@ -20,20 +19,61 @@ interface MapViewWrapperProps {
   interactive?: boolean;
   centerLatitude?: number;
   centerLongitude?: number;
+  /** RF-036: permite arrastrar el pin seleccionado. */
+  draggablePin?: boolean;
+  /** RF-039: radio de búsqueda en kilómetros. */
+  radioKm?: number;
+  /** Centro del círculo de radio. */
+  radioCenter?: { latitude: number; longitude: number };
+  /** RF-041: capa de mapa de calor. */
+  showHeatmap?: boolean;
 }
 
 // Para plataformas móviles nativas importamos condicionalmente react-native-maps
 let NativeMapView: any = null;
 let NativeMarker: any = null;
+let NativeCircle: any = null;
+let NativeHeatmap: any = null;
 
 if (Platform.OS !== 'web') {
   try {
     const Maps = require('react-native-maps');
     NativeMapView = Maps.default || Maps;
     NativeMarker = Maps.Marker;
+    NativeCircle = Maps.Circle;
+    NativeHeatmap = Maps.Heatmap;
   } catch (err) {
     console.warn('react-native-maps no disponible nativamente:', err);
   }
+}
+
+interface Cluster {
+  key: string;
+  latitude: number;
+  longitude: number;
+  items: IncidentReport[];
+}
+
+/** Agrupa pines cercanos por celda de grilla (RF-035). */
+function agruparIncidentes(incidents: IncidentReport[], grid = 0.02): Cluster[] {
+  const mapa = new Map<string, Cluster>();
+  for (const inc of incidents) {
+    const key = `${Math.floor(inc.location.latitude / grid)}_${Math.floor(
+      inc.location.longitude / grid
+    )}`;
+    const existente = mapa.get(key);
+    if (existente) {
+      existente.items.push(inc);
+    } else {
+      mapa.set(key, {
+        key,
+        latitude: inc.location.latitude,
+        longitude: inc.location.longitude,
+        items: [inc],
+      });
+    }
+  }
+  return Array.from(mapa.values());
 }
 
 export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
@@ -45,14 +85,38 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
   interactive = true,
   centerLatitude = -34.6037,
   centerLongitude = -58.3816,
+  draggablePin = false,
+  radioKm,
+  radioCenter,
+  showHeatmap = false,
 }) => {
   const [activeIncident, setActiveIncident] = useState<IncidentReport | null>(null);
+  const mapRef = useRef<any>(null);
+
+  // Reciente el mapa cuando cambia el centro (por ejemplo, "Mi ubicación").
+  useEffect(() => {
+    if (Platform.OS !== 'web' && mapRef.current?.animateToRegion) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: centerLatitude,
+          longitude: centerLongitude,
+          latitudeDelta: 0.08,
+          longitudeDelta: 0.08,
+        },
+        500
+      );
+    }
+  }, [centerLatitude, centerLongitude]);
 
   // Si estamos en entorno móvil nativo y la librería está cargada
   if (Platform.OS !== 'web' && NativeMapView && NativeMarker) {
+    const clusters = agruparIncidentes(incidents);
+    const circuloCentro = radioCenter ?? { latitude: centerLatitude, longitude: centerLongitude };
+
     return (
       <View style={[styles.container, style]}>
         <NativeMapView
+          ref={mapRef}
           style={StyleSheet.absoluteFill}
           initialRegion={{
             latitude: centerLatitude,
@@ -60,6 +124,8 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
             latitudeDelta: 0.08,
             longitudeDelta: 0.08,
           }}
+          scrollEnabled={interactive}
+          zoomEnabled={interactive}
           onPress={(e: any) => {
             if (onSelectLocation && e.nativeEvent?.coordinate) {
               const { latitude, longitude } = e.nativeEvent.coordinate;
@@ -71,7 +137,46 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
             }
           }}
         >
-          {incidents.map((incident) => {
+          {showHeatmap && NativeHeatmap && incidents.length > 0 && (
+            <NativeHeatmap
+              points={incidents.map((inc) => ({
+                latitude: inc.location.latitude,
+                longitude: inc.location.longitude,
+                weight: Math.max(1, Math.round(inc.credibilityScore / 20)),
+              }))}
+              radius={40}
+              opacity={0.6}
+            />
+          )}
+
+          {typeof radioKm === 'number' && radioKm > 0 && NativeCircle && (
+            <NativeCircle
+              center={circuloCentro}
+              radius={radioKm * 1000}
+              strokeColor="rgba(37, 99, 235, 0.6)"
+              fillColor="rgba(37, 99, 235, 0.12)"
+            />
+          )}
+
+          {clusters.map((cluster) => {
+            if (cluster.items.length > 1) {
+              return (
+                <NativeMarker
+                  key={cluster.key}
+                  coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
+                  onPress={() => {
+                    const primero = cluster.items[0];
+                    setActiveIncident(primero);
+                    if (onMarkerPress) onMarkerPress(primero);
+                  }}
+                >
+                  <View style={styles.nativeCluster}>
+                    <Text style={styles.nativeClusterText}>{cluster.items.length}</Text>
+                  </View>
+                </NativeMarker>
+              );
+            }
+            const incident = cluster.items[0];
             const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
             return (
               <NativeMarker
@@ -99,6 +204,17 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
               }}
               pinColor="#2563EB"
               title="Ubicación fijada"
+              draggable={draggablePin}
+              onDragEnd={(e: any) => {
+                if (onSelectLocation && e.nativeEvent?.coordinate) {
+                  const { latitude, longitude } = e.nativeEvent.coordinate;
+                  onSelectLocation({
+                    latitude,
+                    longitude,
+                    address: `Punto fijado (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+                  });
+                }
+              }}
             />
           )}
         </NativeMapView>
@@ -118,6 +234,24 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
         <View style={styles.avenueV2} />
       </View>
 
+      {showHeatmap && <View style={styles.webHeatmapOverlay} />}
+
+      {typeof radioKm === 'number' && radioKm > 0 && (
+        <View style={styles.webRadiusWrapper} pointerEvents="none">
+          <View
+            style={[
+              styles.webRadiusCircle,
+              {
+                width: Math.min(240, radioKm * 12),
+                height: Math.min(240, radioKm * 12),
+                borderRadius: Math.min(120, radioKm * 6),
+              },
+            ]}
+          />
+          <Text style={styles.webRadiusLabel}>{radioKm} km</Text>
+        </View>
+      )}
+
       <View style={styles.mapHeaderBadge}>
         <Ionicons name="map-outline" size={14} color="#0284C7" />
         <Text style={styles.mapHeaderBadgeText}>
@@ -128,7 +262,6 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
       {/* Renderizado de pines sobre el lienzo */}
       {incidents.map((incident, index) => {
         const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
-        // Distribución pseudo-geográfica proporcional para la vista web
         const posX = 15 + ((index * 26 + 18) % 72);
         const posY = 18 + ((index * 22 + 20) % 65);
 
@@ -162,7 +295,9 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
         <View style={[styles.selectedPinContainer, { left: '48%', top: '48%' }]}>
           <Ionicons name="location-sharp" size={32} color="#EF4444" />
           <View style={styles.pinPulse} />
-          <Text style={styles.selectedPinText}>Punto fijado</Text>
+          <Text style={styles.selectedPinText}>
+            {draggablePin ? 'Arrastrá el pin' : 'Punto fijado'}
+          </Text>
         </View>
       )}
 
@@ -196,16 +331,6 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
           <Text style={styles.cardHint}>Toca para ver detalle completo →</Text>
         </TouchableOpacity>
       )}
-
-      {/* Controles de zoom decorativos */}
-      <View style={styles.mapControls}>
-        <View style={styles.controlBtn}>
-          <Ionicons name="add" size={16} color="#334155" />
-        </View>
-        <View style={styles.controlBtn}>
-          <Ionicons name="remove" size={16} color="#334155" />
-        </View>
-      </View>
     </View>
   );
 };
@@ -226,6 +351,30 @@ const styles = StyleSheet.create({
   gridOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: '#EAF0F6',
+  },
+  webHeatmapOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+  },
+  webRadiusWrapper: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    left: '50%',
+    top: '50%',
+    transform: [{ translateX: -60 }, { translateY: -60 }],
+    zIndex: 4,
+  },
+  webRadiusCircle: {
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(37, 99, 235, 0.6)',
+  },
+  webRadiusLabel: {
+    position: 'absolute',
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1D4ED8',
   },
   riverDecoration: {
     position: 'absolute',
@@ -269,6 +418,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 6,
     backgroundColor: '#CBD5E1',
+  },
+  nativeCluster: {
+    minWidth: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  nativeClusterText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
   },
   mapHeaderBadge: {
     position: 'absolute',
@@ -394,26 +558,5 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     marginTop: 6,
     textAlign: 'right',
-  },
-  mapControls: {
-    position: 'absolute',
-    right: 12,
-    bottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 10,
-  },
-  controlBtn: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
 });

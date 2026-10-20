@@ -17,6 +17,7 @@ import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { validarCbu, validarTelefonoE164, CATEGORIAS, CategoriaTipo } from '../services/normalize';
 import { listarCategoriasActivas } from '../services/categoryService';
+import { obtenerUbicacionActual, ubicacionConDireccion } from '../services/locationService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
 
@@ -60,6 +61,20 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
       setIdentifierValue(route.params.prefilledIdentifier.value);
     }
   }, [route.params]);
+
+  const handleMiUbicacion = async () => {
+    const coords = await obtenerUbicacionActual();
+    if (!coords) {
+      Alert.alert(
+        'Ubicación no disponible',
+        'No pudimos obtener tu ubicación. Revisá los permisos del dispositivo.'
+      );
+      return;
+    }
+    const conDireccion = await ubicacionConDireccion(coords);
+    setLocation(conDireccion);
+    setPinConfirmado(true);
+  };
 
   const handleNext = async () => {
     // RF-088: el CBU debe tener 22 dígitos y checksum válido.
@@ -254,13 +269,18 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
           <View style={styles.mapRectangle}>
             <MapViewWrapper
               selectedLocation={location}
-              onSelectLocation={(loc) => {
-                setLocation(loc);
+              draggablePin
+              onSelectLocation={async (loc) => {
                 setPinConfirmado(true);
+                const conDireccion = await ubicacionConDireccion(loc);
+                setLocation(conDireccion);
               }}
               centerLatitude={location.latitude}
               centerLongitude={location.longitude}
             />
+            <TouchableOpacity style={styles.miUbicacionBtn} onPress={handleMiUbicacion}>
+              <Ionicons name="locate" size={18} color="#0F172A" />
+            </TouchableOpacity>
           </View>
           <Text style={styles.locationHelp}>📍 {location.address}</Text>
           {requiereUbicacion && !pinConfirmado && (
@@ -422,6 +442,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CBD5E1',
     backgroundColor: '#E2E8F0',
+  },
+  miUbicacionBtn: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    zIndex: 20,
   },
   locationHelp: {
     fontSize: 11,

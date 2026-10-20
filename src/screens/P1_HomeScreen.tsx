@@ -8,11 +8,13 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentReport, RootStackParamList } from '../types';
 import { getIncidents } from '../services/firebase';
+import { obtenerUbicacionActual } from '../services/locationService';
 import { sugerirIdentificadores, sugerirCorreccion } from '../services/autocompleteService';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +39,9 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [todosIncidentes, setTodosIncidentes] = useState<IncidentReport[]>([]);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [radioKm, setRadioKm] = useState<number | undefined>(undefined);
+  const [centro, setCentro] = useState({ latitude: -34.6037, longitude: -58.3816 });
 
   useEffect(() => {
     getIncidents().then(setTodosIncidentes).catch(() => {});
@@ -66,6 +71,18 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleMarkerPress = (incident: IncidentReport) => {
     navigation.navigate('P2_ReportDetail', { incident });
+  };
+
+  const handleMiUbicacion = async () => {
+    const coords = await obtenerUbicacionActual();
+    if (!coords) {
+      Alert.alert(
+        'Ubicación no disponible',
+        'No pudimos obtener tu ubicación. Revisá los permisos del dispositivo.'
+      );
+      return;
+    }
+    setCentro(coords);
   };
 
   return (
@@ -171,7 +188,46 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
         <MapViewWrapper
           incidents={incidents}
           onMarkerPress={handleMarkerPress}
+          centerLatitude={centro.latitude}
+          centerLongitude={centro.longitude}
+          showHeatmap={showHeatmap}
+          radioKm={radioKm}
+          radioCenter={centro}
         />
+
+        {/* Controles de capas del mapa (RF-037, RF-039, RF-041) */}
+        <View style={styles.mapLayersPanel}>
+          <TouchableOpacity
+            style={[styles.layerChip, showHeatmap && styles.layerChipActive]}
+            onPress={() => setShowHeatmap((v) => !v)}
+          >
+            <Ionicons
+              name="flame-outline"
+              size={14}
+              color={showHeatmap ? '#FFFFFF' : '#0F172A'}
+            />
+            <Text style={[styles.layerChipText, showHeatmap && styles.layerChipTextActive]}>
+              Calor
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.layerChip} onPress={handleMiUbicacion}>
+            <Ionicons name="locate" size={14} color="#0F172A" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.radioPanel}>
+          {[1, 5, 10, 20].map((km) => (
+            <TouchableOpacity
+              key={km}
+              style={[styles.radioChip, radioKm === km && styles.radioChipActive]}
+              onPress={() => setRadioKm(radioKm === km ? undefined : km)}
+            >
+              <Text style={[styles.radioChipText, radioKm === km && styles.radioChipTextActive]}>
+                {km}km
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* Botón Flotante (FAB): Un círculo oscuro abajo a la derecha con un "+" */}
         <TouchableOpacity
@@ -308,6 +364,64 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#E2E8F0',
     position: 'relative',
+  },
+  mapLayersPanel: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    gap: 8,
+    zIndex: 20,
+  },
+  layerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  layerChipActive: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
+  },
+  layerChipText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  layerChipTextActive: {
+    color: '#FFFFFF',
+  },
+  radioPanel: {
+    position: 'absolute',
+    bottom: 88,
+    left: 12,
+    flexDirection: 'row',
+    gap: 6,
+    zIndex: 20,
+  },
+  radioChip: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  radioChipActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  radioChipText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  radioChipTextActive: {
+    color: '#FFFFFF',
   },
   // Botón Flotante (FAB): Círculo oscuro abajo a la derecha con un "+"
   fab: {
