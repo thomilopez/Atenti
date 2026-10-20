@@ -21,6 +21,8 @@ import { P16_AdminCategoriesScreen } from '../screens/P16_AdminCategoriesScreen'
 import { P17_AdminUsersScreen } from '../screens/P17_AdminUsersScreen';
 import { P18_AdminAuditScreen } from '../screens/P18_AdminAuditScreen';
 import { P20_SettingsScreen } from '../screens/P20_SettingsScreen';
+import { P21_ImpugnacionScreen } from '../screens/P21_ImpugnacionScreen';
+import { P22_DisputeStatusScreen } from '../screens/P22_DisputeStatusScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -90,6 +92,10 @@ export const AppNavigator: React.FC = () => {
 
         {/* P20 - Ajustes */}
         <Stack.Screen name="P20_Settings" component={P20_SettingsScreen} />
+
+        {/* Impugnaciones */}
+        <Stack.Screen name="P21_Impugnacion" component={P21_ImpugnacionScreen} />
+        <Stack.Screen name="P22_DisputeStatus" component={P22_DisputeStatusScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

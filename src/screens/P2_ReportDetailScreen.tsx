@@ -252,6 +252,13 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
       {/* Pie: Botón ancho "Denunciar mismo objetivo" */}
       <View style={styles.footer}>
         <TouchableOpacity
+          style={styles.impugnarBtn}
+          activeOpacity={0.88}
+          onPress={() => navigation.navigate('P21_Impugnacion', { incident })}
+        >
+          <Text style={styles.impugnarBtnText}>Impugnar esta denuncia</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.denounceBtn}
           activeOpacity={0.88}
           onPress={handleDenounceSameTarget}
@@ -496,6 +503,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+    gap: 8,
+  },
+  impugnarBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#0F172A',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  impugnarBtnText: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '800',
   },
   // Botón ancho "Denunciar mismo objetivo" (en rojo llamativo como en mockup)
   denounceBtn: {

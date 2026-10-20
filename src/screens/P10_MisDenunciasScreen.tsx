@@ -90,7 +90,13 @@ export const P10_MisDenunciasScreen: React.FC<Props> = ({ navigation }) => {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.card}
-              onPress={() => navigation.navigate('P12_EditReport', { incident: item })}
+              onPress={() => {
+                if ((item.estadoActual ?? 'PUBLICADA') === 'EN_DISPUTA') {
+                  navigation.navigate('P22_DisputeStatus', { denunciaId: item.id });
+                } else {
+                  navigation.navigate('P12_EditReport', { incident: item });
+                }
+              }}
             >
               <View style={styles.cardTop}>
                 <Text style={styles.cardCode}>{item.trackingCode}</Text>

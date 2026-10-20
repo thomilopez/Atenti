@@ -136,4 +136,6 @@ export type RootStackParamList = {
   P17_AdminUsers: undefined;
   P18_AdminAudit: { incidentId: string };
   P20_Settings: undefined;
+  P21_Impugnacion: { incident: IncidentReport };
+  P22_DisputeStatus: { denunciaId: string };
 };
