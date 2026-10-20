@@ -33,6 +33,10 @@ export interface EvidenceItem {
   ocrConfidence?: number;
   isMasked?: boolean;
   timestamp: number;
+  /** RF-034: metadatos técnicos leídos del archivo (no se muestran públicamente). */
+  exif?: Record<string, unknown>;
+  size?: number;
+  mimeType?: string;
 }
 
 export interface UserIdentityFactors {

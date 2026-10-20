@@ -133,6 +133,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
                 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600',
             }}
             style={styles.heroImage}
+            blurRadius={14}
           />
         </View>
 
@@ -177,6 +178,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
         {/* Cuerpo: Debajo 2 cuadrados pequeños para las fotos (Evidencias) */}
         <View style={styles.evidenceSection}>
           <Text style={styles.sectionLabel}>Evidencias</Text>
+          <Text style={styles.maskedNote}>Datos sensibles protegidos con blur</Text>
           <View style={styles.evidenceRow}>
             {/* Cuadrado 1 */}
             <View style={styles.evidenceSquare}>
@@ -184,6 +186,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
                 <Image
                   source={{ uri: incident.evidences[0].uri }}
                   style={styles.squareImage}
+                  blurRadius={14}
                 />
               ) : (
                 <View style={styles.emptySquarePlaceholder}>
@@ -198,6 +201,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
                 <Image
                   source={{ uri: incident.evidences[1].uri }}
                   style={styles.squareImage}
+                  blurRadius={14}
                 />
               ) : (
                 <View style={styles.emptySquarePlaceholder}>
@@ -380,6 +384,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  maskedNote: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginBottom: 8,
   },
   // 2 cuadrados pequeños para las fotos (Evidencias)
   evidenceRow: {
