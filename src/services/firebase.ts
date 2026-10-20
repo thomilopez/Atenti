@@ -43,6 +43,8 @@ import {
 } from './stateMachine';
 import { toPublicProjection, PublicIncidentProjection } from './masking';
 import { env, hasRealFirebaseConfig } from './env';
+import { filtrarTexto } from './lexiconFilter';
+import { getCache, setCache, invalidarCache } from './cacheService';
 
 /** Indica si la app corre con credenciales reales de Firebase o en modo demo. */
 export const isFirebaseConfigured = hasRealFirebaseConfig();
@@ -291,6 +293,13 @@ export async function getIncidents(
   opciones?: { incluirEnDisputa?: boolean }
 ): Promise<IncidentReport[]> {
   const incluirEnDisputa = opciones?.incluirEnDisputa ?? false;
+  const cacheKey = `incidents:${filterType ?? ''}:${searchQuery ?? ''}:${incluirEnDisputa}`;
+
+  // RF-100: responder desde cache si esta vigente.
+  const enCache = getCache<IncidentReport[]>(cacheKey);
+  if (enCache) return enCache;
+
+  let resultado: IncidentReport[] | null = null;
 
   if (isFirebaseConfigured) {
     try {
@@ -304,14 +313,19 @@ export async function getIncidents(
           (d) => ({ id: d.id, ...(d.data() as Omit<IncidentReport, 'id'>) } as IncidentReport)
         );
         inMemoryIncidents = docs;
-        return aplicarFiltros(docs, filterType, searchQuery, incluirEnDisputa);
+        resultado = aplicarFiltros(docs, filterType, searchQuery, incluirEnDisputa);
       }
     } catch (error) {
       console.warn('getIncidents: Firestore no disponible, uso fallback en memoria:', error);
     }
   }
 
-  return aplicarFiltros(inMemoryIncidents, filterType, searchQuery, incluirEnDisputa);
+  if (!resultado) {
+    resultado = aplicarFiltros(inMemoryIncidents, filterType, searchQuery, incluirEnDisputa);
+  }
+
+  setCache(cacheKey, resultado);
+  return resultado;
 }
 
 export interface BusquedaPaginadaParams {
@@ -544,6 +558,9 @@ export interface RegistrarDenunciaInput {
   ddjjAceptada: boolean;
   googleVerificado: boolean;
   claveOperacion?: string;
+  /** RF-082: hash de la DDJJ con IP y timestamp. */
+  ddjjHash?: string;
+  ddjjAceptadaEn?: string;
 }
 
 export interface RegistrarDenunciaResult {
@@ -580,6 +597,7 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
   }
 
   const valorNormalizado = normalizeIdentifier(input.identifierType, input.identifierValue);
+  const storySanitizada = filtrarTexto(input.story ?? '');
   const previas = inMemoryIncidents.filter(
     (i) =>
       (i.valorNormalizado ?? normalizeIdentifier(i.identifierType, i.identifierValue)) === valorNormalizado,
@@ -604,6 +622,8 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
     clientIp: '0.0.0.0',
     platform: Platform.OS as 'android' | 'ios' | 'web',
     createdAt: new Date().toISOString(),
+    ddjjHash: input.ddjjHash,
+    ddjjAceptadaEn: input.ddjjAceptadaEn,
   };
 
   const destino: DenunciaEstado = pct >= 20 ? 'PUBLICADA' : 'RECIBIDA';
@@ -626,7 +646,7 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
     identifierValue: input.identifierValue,
     title: `${input.identifierType}: ${input.identifierValue}`,
     category: input.category,
-    story: input.story,
+    story: storySanitizada,
     location: input.location,
     evidences: input.evidences.map((e) => ({ ...e, isMasked: true })),
     credibilityScore: pct,
@@ -640,6 +660,7 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
   if (!checkInvarianteI05(destino, historial)) throw new Error('I-05: historial inconsistente');
 
   inMemoryIncidents = [reporte, ...inMemoryIncidents];
+  invalidarCache('incidents:');
   byOperationKey.set(claveOperacion, reporte);
   historialByDenuncia.set(incidentId, historial);
 

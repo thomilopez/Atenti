@@ -61,6 +61,7 @@ export const P18_AdminAuditScreen: React.FC<Props> = ({ route, navigation }) => 
               <Row label="IP" value={reporte.audit.clientIp} />
               <Row label="Plataforma" value={reporte.audit.platform} />
               <Row label="Fecha" value={new Date(reporte.audit.createdAt).toLocaleString('es-AR')} />
+              <Row label="Hash DDJJ" value={reporte.audit.ddjjHash ?? 'No registrado'} />
             </View>
 
             <Text style={styles.sectionTitle}>Denuncia</Text>

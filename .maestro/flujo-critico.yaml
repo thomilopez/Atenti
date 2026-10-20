@@ -1,0 +1,12 @@
+appId: com.atenti.app
+---
+- launchApp
+- assertVisible: "Buscar por Alias, CBU, Teléfono o Local..."
+- tapOn: "Buscar por Alias, CBU, Teléfono o Local..."
+- inputText: "ju.mp"
+- assertVisible: "Alias: ju.mp"
+- tapOn: "Alias: ju.mp"
+- assertVisible: "Detalle de Incidencia"
+- back
+- tapOn:
+    id: ".*fab.*"

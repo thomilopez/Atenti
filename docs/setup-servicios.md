@@ -373,3 +373,67 @@ firebase deploy --only functions
 
 > Las notificaciones son in-app por ahora. El push y el centro completo se
 > implementan en el cambio `notificaciones`.
+
+---
+
+## 19. Legal y trazabilidad
+
+1. **Hash de la DDJJ (RF-082):** al enviar una denuncia se genera un SHA-256 con
+   uid, IP y timestamp, y se guarda en `audit.ddjjHash`. Se ve en la auditoría
+   del administrador (P18).
+2. **Términos versionados (RF-083):** `src/services/termsService.ts` define las
+   versiones. La pantalla **Ajustes → Términos, privacidad y retención** permite
+   ver cada versión y su fecha.
+3. **Privacidad y retención (RF-084/RF-085):** la misma pantalla muestra la Ley
+   25.326 y el plazo de retención de datos.
+4. **Derecho al olvido (RF-086):** botón dentro de la pantalla legal; registra la
+   solicitud en `solicitudes_baja` con su motivo.
+5. **Log de auditoría (RF-081):** Panel de administración → **Log de auditoría**.
+   En demo se deriva de las denuncias; con Firebase lee `audit_logs`.
+
+Colecciones: `audit_logs`, `solicitudes_baja`, `terminos_aceptados`.
+
+---
+
+## 20. Observabilidad, EAS y CI
+
+### Sentry (opcional)
+
+El adaptador `src/services/observability.ts` captura errores globales. Sin DSN
+registra en local; para conectarlo:
+
+1. Creá un proyecto en <https://sentry.io>.
+2. Agregá el DSN en `.env`:
+   ```env
+   EXPO_PUBLIC_SENTRY_DSN=https://...
+   ```
+3. Cuando quieras enviar los eventos, instalá el SDK y llamalo dentro de
+   `inicializarObservabilidad()`.
+
+### EAS Build
+
+`eas.json` define tres perfiles (`development`, `preview`, `production`):
+
+```bash
+npm install -g eas-cli
+eas login
+eas build --profile preview --platform android
+```
+
+### CI/CD
+
+`.github/workflows/ci.yml` corre en cada push/PR:
+`npm ci` → `npm run typecheck` → `npm run verify:all`.
+
+### E2E con Maestro
+
+```bash
+maestro test .maestro/flujo-critico.yaml
+```
+
+Requiere un development build instalado en un emulador o dispositivo.
+
+### Analytics
+
+En **Ajustes → Métricas de uso anónimas** el usuario da o revoca el
+consentimiento. Sin consentimiento no se registra ningún evento.

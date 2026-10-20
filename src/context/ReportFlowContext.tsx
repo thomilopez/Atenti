@@ -31,6 +31,7 @@ import { useConnectivity } from './ConnectivityContext';
 import { useAuth } from './AuthContext';
 import { encolarBorrador, procesarCola } from '../services/syncQueue';
 import { registrarCambioScore } from '../services/scoreHistory';
+import { generarHashDDJJ } from '../services/ddjjService';
 
 interface ReportFlowContextType {
   category: IncidentCategory;
@@ -231,6 +232,9 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
+    // RF-082: hash de la DDJJ con IP y timestamp.
+    const ddjj = await generarHashDDJJ({ uid, ip: '0.0.0.0' });
+
     // E3: reintentos usan la misma clave; el servidor devuelve el código original.
     const { reporte } = await registrarDenuncia({
       identifierType,
@@ -244,6 +248,8 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       ddjjAceptada: true,
       googleVerificado: true,
       claveOperacion: activeOperationKey,
+      ddjjHash: ddjj.hash,
+      ddjjAceptadaEn: ddjj.aceptadaEn,
     });
 
     // RF-049: registrar la evolución del score de la denuncia recién creada.

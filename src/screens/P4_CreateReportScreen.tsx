@@ -18,6 +18,7 @@ import { BottomNavBar } from '../components/BottomNavBar';
 import { validarCbu, validarTelefonoE164, CATEGORIAS, CategoriaTipo } from '../services/normalize';
 import { listarCategoriasActivas } from '../services/categoryService';
 import { obtenerUbicacionActual, ubicacionConDireccion } from '../services/locationService';
+import { filtrarTexto, contieneLenguajeOfensivo } from '../services/lexiconFilter';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
 
@@ -44,6 +45,7 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [identifierDropdownOpen, setIdentifierDropdownOpen] = useState(false);
   const [categorias, setCategorias] = useState<CategoriaTipo[]>(CATEGORIAS.map((c) => ({ ...c })));
+  const [filtroAplicado, setFiltroAplicado] = useState(false);
 
   const validationError = route.params?.validationError;
   const categoriaSeleccionada = categorias.find((c) => c.nombre === category);
@@ -257,11 +259,19 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
             placeholder="Detalla qué sucedió para alertar a otros usuarios..."
             placeholderTextColor="#94A3B8"
             value={story}
-            onChangeText={setStory}
+            onChangeText={(valor) => {
+              if (contieneLenguajeOfensivo(valor)) setFiltroAplicado(true);
+              setStory(filtrarTexto(valor));
+            }}
           />
           <Text style={[styles.storyCounter, relatoValido ? styles.storyCounterOk : styles.storyCounterError]}>
             {story.trim().length}/20 caracteres mínimos
           </Text>
+          {filtroAplicado && (
+            <Text style={styles.filterNote}>
+              Se reemplazaron términos ofensivos del relato.
+            </Text>
+          )}
         </View>
 
         {/* Un rectángulo mediano (Mapa para fijar pin) */}
@@ -479,6 +489,12 @@ const styles = StyleSheet.create({
   },
   storyCounterError: {
     color: '#DC2626',
+  },
+  filterNote: {
+    fontSize: 10,
+    color: '#92400E',
+    marginTop: 4,
+    fontWeight: '600',
   },
   btnDisabled: {
     opacity: 0.5,

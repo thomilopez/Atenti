@@ -60,6 +60,9 @@ export interface AuditMetadata {
   clientIp: string;
   platform: 'android' | 'ios' | 'web';
   createdAt: string;
+  /** RF-082: hash SHA-256 de la DDJJ aceptada. */
+  ddjjHash?: string;
+  ddjjAceptadaEn?: string;
 }
 
 export interface IncidentReport {
@@ -138,4 +141,7 @@ export type RootStackParamList = {
   P20_Settings: undefined;
   P21_Impugnacion: { incident: IncidentReport };
   P22_DisputeStatus: { denunciaId: string };
+  P23_Legal: undefined;
+  P24_RightToBeForgotten: undefined;
+  P25_AuditLog: undefined;
 };

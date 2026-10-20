@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,6 +17,7 @@ import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { registrarSolicitudBaja } from '../services/accountService';
 import { listarNotificaciones, Notificacion } from '../services/notificationService';
+import { cargarConsentimiento, setConsentimiento } from '../services/analytics';
 import { BottomNavBar } from '../components/BottomNavBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P20_Settings'>;
@@ -25,15 +27,22 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [motivo, setMotivo] = useState('');
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
+  const [telemetria, setTelemetria] = useState(false);
 
   useEffect(() => {
     const cargar = async () => {
       const propias = await listarNotificaciones(user?.uid);
       const todas = propias.length > 0 ? propias : await listarNotificaciones();
       setNotificaciones(todas);
+      setTelemetria(await cargarConsentimiento());
     };
     cargar();
   }, [user?.uid]);
+
+  const handleTelemetria = async (valor: boolean) => {
+    setTelemetria(valor);
+    await setConsentimiento(valor);
+  };
 
   const handleLogout = async () => {
     Alert.alert('Cerrar sesión', '¿Querés cerrar tu sesión?', [
@@ -143,6 +152,24 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Sesión y privacidad</Text>
+          <TouchableOpacity
+            style={styles.actionRow}
+            onPress={() => navigation.navigate('P23_Legal')}
+          >
+            <Ionicons name="document-text-outline" size={18} color="#0F172A" />
+            <Text style={styles.actionText}>Términos, privacidad y retención</Text>
+          </TouchableOpacity>
+
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.actionText}>Métricas de uso anónimas</Text>
+              <Text style={styles.legalNote}>
+                Ayuda a mejorar Atenti sin compartir datos personales.
+              </Text>
+            </View>
+            <Switch value={telemetria} onValueChange={handleTelemetria} />
+          </View>
+
           <TouchableOpacity style={styles.actionRow} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={18} color="#0F172A" />
             <Text style={styles.actionText}>Cerrar sesión</Text>
@@ -288,6 +315,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#94A3B8',
     marginTop: 2,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  toggleInfo: {
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,

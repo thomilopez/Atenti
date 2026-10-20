@@ -40,13 +40,15 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
     "verify": "node scripts/verify-mvp.js",
     "verify:block-a": "node scripts/verify-block-a.js",
     "verify:backend": "node scripts/verify-backend.js",
     "verify:denuncias": "node scripts/verify-denuncias.js",
     "verify:evidencias": "node scripts/verify-evidencias.js",
     "verify:impugnaciones": "node scripts/verify-impugnaciones.js",
-    "verify:all": "node scripts/verify-mvp.js && node scripts/verify-block-a.js && node scripts/verify-backend.js && node scripts/verify-denuncias.js && node scripts/verify-evidencias.js && node scripts/verify-impugnaciones.js"
+    "verify:legal": "node scripts/verify-legal.js",
+    "verify:all": "node scripts/verify-mvp.js && node scripts/verify-block-a.js && node scripts/verify-backend.js && node scripts/verify-denuncias.js && node scripts/verify-evidencias.js && node scripts/verify-impugnaciones.js && node scripts/verify-legal.js"
   },
   "private": true
 }

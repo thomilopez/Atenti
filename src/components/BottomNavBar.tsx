@@ -17,6 +17,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => navigation.navigate('P1_Home')}
+        accessibilityRole="button"
+        accessibilityLabel="Inicio"
       >
         <Ionicons
           name={activeTab === 'home' ? 'grid' : 'grid-outline'}
@@ -28,6 +30,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => navigation.navigate('P1_Home')}
+        accessibilityRole="button"
+        accessibilityLabel="Mapa de denuncias"
       >
         <Ionicons
           name={activeTab === 'map' ? 'map' : 'map-outline'}
@@ -39,6 +43,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => navigation.navigate('P4_CreateReport')}
+        accessibilityRole="button"
+        accessibilityLabel="Crear reporte"
       >
         <Ionicons
           name={activeTab === 'report' ? 'add-circle' : 'add-circle-outline'}
@@ -50,6 +56,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => navigation.navigate('P9_CredibilityPanel')}
+        accessibilityRole="button"
+        accessibilityLabel="Mi credibilidad"
       >
         <Ionicons
           name={activeTab === 'profile' ? 'person' : 'person-outline'}

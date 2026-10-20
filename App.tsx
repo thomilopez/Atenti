@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -7,8 +7,13 @@ import { AuthProvider } from './src/context/AuthContext';
 import { ReportFlowProvider } from './src/context/ReportFlowContext';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { inicializarObservabilidad } from './src/services/observability';
 
 export default function App() {
+  useEffect(() => {
+    inicializarObservabilidad();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <ConnectivityProvider>

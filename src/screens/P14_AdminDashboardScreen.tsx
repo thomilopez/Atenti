@@ -115,6 +115,14 @@ export const P14_AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
 
+            <TouchableOpacity
+              style={styles.auditBtn}
+              onPress={() => navigation.navigate('P25_AuditLog')}
+            >
+              <Ionicons name="document-text-outline" size={16} color="#0F172A" />
+              <Text style={styles.actionText}>Log de auditoría</Text>
+            </TouchableOpacity>
+
             <Text style={styles.sectionTitle}>Denuncias en disputa</Text>
             {disputas.length === 0 ? (
               <View style={styles.empty}>
@@ -206,6 +214,18 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   actionText: { fontSize: 11, fontWeight: '700', color: '#0F172A' },
+  auditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 20,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '800',

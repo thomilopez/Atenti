@@ -31,6 +31,7 @@ export interface AtentiEnv {
   functionsRegion: string;
   /** Emails autorizados a ver el panel de administración (temporal, RF-015 pendiente). */
   adminEmails: string[];
+  sentryDsn: string;
 }
 
 /** Límite por defecto de denuncias diarias por usuario (RF-090). */
@@ -83,6 +84,7 @@ export function loadEnv(): AtentiEnv {
       .split(',')
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean),
+    sentryDsn: read('EXPO_PUBLIC_SENTRY_DSN'),
   };
 }
 

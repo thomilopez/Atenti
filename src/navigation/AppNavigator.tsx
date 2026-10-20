@@ -23,6 +23,9 @@ import { P18_AdminAuditScreen } from '../screens/P18_AdminAuditScreen';
 import { P20_SettingsScreen } from '../screens/P20_SettingsScreen';
 import { P21_ImpugnacionScreen } from '../screens/P21_ImpugnacionScreen';
 import { P22_DisputeStatusScreen } from '../screens/P22_DisputeStatusScreen';
+import { P23_LegalScreen } from '../screens/P23_LegalScreen';
+import { P24_RightToBeForgottenScreen } from '../screens/P24_RightToBeForgottenScreen';
+import { P25_AuditLogScreen } from '../screens/P25_AuditLogScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -96,6 +99,11 @@ export const AppNavigator: React.FC = () => {
         {/* Impugnaciones */}
         <Stack.Screen name="P21_Impugnacion" component={P21_ImpugnacionScreen} />
         <Stack.Screen name="P22_DisputeStatus" component={P22_DisputeStatusScreen} />
+
+        {/* Legal */}
+        <Stack.Screen name="P23_Legal" component={P23_LegalScreen} />
+        <Stack.Screen name="P24_RightToBeForgotten" component={P24_RightToBeForgottenScreen} />
+        <Stack.Screen name="P25_AuditLog" component={P25_AuditLogScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

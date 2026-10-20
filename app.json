@@ -8,6 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.atenti.app",
       "config": {
         "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
       },
@@ -17,6 +18,7 @@
       }
     },
     "android": {
+      "package": "com.atenti.app",
       "config": {
         "googleMaps": {
           "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"

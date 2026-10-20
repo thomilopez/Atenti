@@ -234,6 +234,8 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
           style={styles.fab}
           activeOpacity={0.88}
           onPress={handleFabPress}
+          accessibilityRole="button"
+          accessibilityLabel="Crear reporte"
         >
           <Ionicons name="add" size={32} color="#FFFFFF" />
         </TouchableOpacity>
