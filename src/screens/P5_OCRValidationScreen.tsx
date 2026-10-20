@@ -329,9 +329,7 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.fixedFooter}>
         <View style={styles.credibilityBox}>
           <Text style={styles.credibilityLabel}>Credibilidad:</Text>
-          <Text style={styles.credibilityPercent}>
-            {evidences.length > 0 ? '80%' : `${credibilityScore}%`}
-          </Text>
+          <Text style={styles.credibilityPercent}>{credibilityScore}%</Text>
         </View>
 
         <TouchableOpacity

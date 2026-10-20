@@ -37,6 +37,7 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
     setLocation,
     pinConfirmado,
     setPinConfirmado,
+    credibilityScore,
     saveCurrentDraft,
   } = useReportFlow();
 
@@ -295,7 +296,7 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
       <View style={styles.fixedFooter}>
         <View style={styles.credibilityBox}>
           <Text style={styles.credibilityLabel}>Credibilidad:</Text>
-          <Text style={styles.credibilityPercent}>20%</Text>
+          <Text style={styles.credibilityPercent}>{credibilityScore}%</Text>
         </View>
 
         <TouchableOpacity

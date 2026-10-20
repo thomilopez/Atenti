@@ -13,6 +13,7 @@ import React, {
   ReactNode,
 } from 'react';
 import {
+  CredibilityBreakdown,
   EvidenceItem,
   IdentifierType,
   IncidentCategory,
@@ -27,7 +28,9 @@ import { normalizeIdentifier } from '../services/normalize';
 import { verificarLimiteDenuncias, detectarSpam } from '../services/cloudFunctions';
 import { saveDraft, getDraftById, deleteDraft } from '../services/draftStorage';
 import { useConnectivity } from './ConnectivityContext';
+import { useAuth } from './AuthContext';
 import { encolarBorrador, procesarCola } from '../services/syncQueue';
+import { registrarCambioScore } from '../services/scoreHistory';
 
 interface ReportFlowContextType {
   category: IncidentCategory;
@@ -47,6 +50,7 @@ interface ReportFlowContextType {
   addEvidence: (evidence: EvidenceItem) => void;
   removeEvidence: (id: string) => void;
   credibilityScore: number;
+  credibilityBreakdown: CredibilityBreakdown;
   activeDraftId: string | null;
   loadFromDraft: (draft: ReportDraft) => void;
   resetForm: () => void;
@@ -68,6 +72,7 @@ const ReportFlowContext = createContext<ReportFlowContextType | undefined>(undef
 
 export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
   const { isConnected } = useConnectivity();
+  const { identityFactors } = useAuth();
 
   const [category, setCategory] = useState<IncidentCategory>('Estafa Bancaria');
   const [identifierType, setIdentifierType] = useState<IdentifierType>('Alias');
@@ -80,25 +85,24 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
   const [activeOperationKey, setActiveOperationKey] = useState<string>(() => generateOperationKey());
   const [simulateOffline, setSimulateOffline] = useState<boolean>(false);
 
-  // Cálculo dinámico de credibilidad (RG-07)
-  const [credibilityScore, setCredibilityScore] = useState<number>(20);
+  // Cálculo dinámico de credibilidad (RG-07), sin valores fijos.
+  const [credibilityBreakdown, setCredibilityBreakdown] = useState<CredibilityBreakdown>(() =>
+    calculateRG07Score({
+      identity: identityFactors,
+      evidences: [],
+      corroborationCount: 0,
+    })
+  );
+  const credibilityScore = credibilityBreakdown.totalScore;
 
   useEffect(() => {
-    if (evidences.length === 0) {
-      setCredibilityScore(20);
-    } else {
-      const scoreData = calculateRG07Score({
-        identity: {
-          googleAuth: true,
-          phoneVerified: true,
-          dniVerified: false,
-        },
-        evidences,
-        corroborationCount: 2,
-      });
-      setCredibilityScore(Math.max(80, scoreData.totalScore));
-    }
-  }, [evidences]);
+    const breakdown = calculateRG07Score({
+      identity: identityFactors,
+      evidences,
+      corroborationCount: 0,
+    });
+    setCredibilityBreakdown(breakdown);
+  }, [evidences, identityFactors]);
 
   const addEvidence = (evidence: EvidenceItem) => {
     setEvidences((prev) => [...prev, evidence]);
@@ -118,7 +122,6 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
     setLocation(draft.location);
     setPinConfirmado(true);
     setEvidences(draft.evidences || []);
-    setCredibilityScore(draft.credibilityScore || 20);
   };
 
   const resetForm = () => {
@@ -131,7 +134,6 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
     setLocation(defaultLocation);
     setPinConfirmado(false);
     setEvidences([]);
-    setCredibilityScore(20);
   };
 
   const saveCurrentDraft = async (): Promise<ReportDraft> => {
@@ -244,6 +246,25 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       claveOperacion: activeOperationKey,
     });
 
+    // RF-049: registrar la evolución del score de la denuncia recién creada.
+    const scoreInicial = calculateRG07Score({
+      identity: identityFactors,
+      evidences: [],
+      corroborationCount: 0,
+    }).totalScore;
+    await registrarCambioScore({
+      denunciaId: reporte.id,
+      score: scoreInicial,
+      motivo: 'Creación sin evidencias',
+    });
+    if (evidences.length > 0) {
+      await registrarCambioScore({
+        denunciaId: reporte.id,
+        score: reporte.credibilityScore,
+        motivo: 'Evidencias adjuntas',
+      });
+    }
+
     return reporte;
   };
 
@@ -266,6 +287,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
         addEvidence,
         removeEvidence,
         credibilityScore,
+        credibilityBreakdown,
         activeDraftId,
         loadFromDraft,
         resetForm,

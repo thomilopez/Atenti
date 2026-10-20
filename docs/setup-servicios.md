@@ -298,3 +298,52 @@ Debe pasar:
 - Configurá alertas de presupuesto en Google Cloud.
 - Revisá periódicamente el uso de Cloud Vision y Functions (son los que más
   consumen).
+
+---
+
+## 17. Mapas reales, ubicación y evidencias
+
+### Google Maps con development build
+
+`react-native-maps` usa el proveedor nativo. **Expo Go no renderiza Google Maps
+real**; para verlo necesitás un development build:
+
+1. Completá `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` en `.env`.
+2. Reemplazá los placeholders de `app.json`:
+   ```json
+   "android": { "config": { "googleMaps": { "apiKey": "TU_API_KEY" } } },
+   "ios": { "config": { "googleMapsApiKey": "TU_API_KEY" } }
+   ```
+3. Generá el proyecto nativo y corré:
+   ```bash
+   npx expo prebuild
+   npx expo run:android   # o run:ios
+   ```
+4. En Android, asociá la huella SHA-1 (paso 6) para que la key funcione.
+
+> En web/Expo Go se usa el fallback visual del mapa (`MapViewWrapper`), así que la
+> navegación y los pines siguen funcionando.
+
+### Ubicación
+
+`expo-location` pide permiso en tiempo de ejecución. Los textos de permiso ya
+están en `app.json` (`NSLocationWhenInUseUsageDescription`). Si el usuario niega
+el permiso, la app mantiene la ubicación por defecto y avisa.
+
+### Cloud Storage para evidencias
+
+1. Habilitá **Storage** (paso 4).
+2. Desplegá las reglas:
+   ```bash
+   firebase deploy --only storage
+   ```
+   `storage.rules` limita a 10MB y a JPG/PNG/PDF, y exige autenticación.
+3. Las evidencias se suben a `evidencias/<timestamp>_<archivo>`. Sin Firebase
+   configurado se conserva la URI local (modo demo).
+
+### Límites de evidencias
+
+- Máximo **5 archivos** por denuncia.
+- Máximo **10MB** por archivo.
+- Formatos: **JPG, PNG y PDF**.
+- La vista pública aplica blur; el administrador ve el original en la auditoría.

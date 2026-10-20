@@ -90,6 +90,46 @@ export function getTrafficLightColor(color: TrafficLightColor): string {
   }
 }
 
+// ---------------------------------------------------------------------------
+// RF-046: semáforo extendido de 4 colores (Gris / Rojo / Naranja / Amarillo).
+// ---------------------------------------------------------------------------
+
+export type NivelCredibilidad4 = 'GRIS' | 'ROJO' | 'NARANJA' | 'AMARILLO';
+
+/** Umbrales: <20 Gris, 20-39 Rojo, 40-74 Naranja, >=75 Amarillo. */
+export function nivelCredibilidad4(score: number): NivelCredibilidad4 {
+  if (score < 20) return 'GRIS';
+  if (score < 40) return 'ROJO';
+  if (score < 75) return 'NARANJA';
+  return 'AMARILLO';
+}
+
+export function getNivel4Color(nivel: NivelCredibilidad4): string {
+  switch (nivel) {
+    case 'GRIS':
+      return '#94A3B8';
+    case 'ROJO':
+      return '#EF4444';
+    case 'NARANJA':
+      return '#F97316';
+    case 'AMARILLO':
+      return '#FACC15';
+  }
+}
+
+export function getNivel4Label(nivel: NivelCredibilidad4): string {
+  switch (nivel) {
+    case 'GRIS':
+      return 'Preliminar';
+    case 'ROJO':
+      return 'Baja veracidad';
+    case 'NARANJA':
+      return 'En investigación';
+    case 'AMARILLO':
+      return 'Alta veracidad';
+  }
+}
+
 export function getVeracityDescription(level: VeracityLevel): string {
   switch (level) {
     case 'ALTA':

@@ -21,6 +21,8 @@ import { useAuth } from '../context/AuthContext';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { toPublicProjection } from '../services/masking';
+import { obtenerHistorialScore, EventoScore } from '../services/scoreHistory';
+import { ScoreBreakdown } from '../components/ScoreBreakdown';
 import {
   exportarFichaPDF,
   exportarCSV,
@@ -39,10 +41,15 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
   const [showExportModal, setShowExportModal] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
   const [authHash, setAuthHash] = useState('');
+  const [historialScore, setHistorialScore] = useState<EventoScore[]>([]);
 
   useEffect(() => {
     hashAutenticidad(proyeccion).then(setAuthHash).catch(() => {});
   }, [proyeccion]);
+
+  useEffect(() => {
+    obtenerHistorialScore(incident.id).then(setHistorialScore).catch(() => {});
+  }, [incident.id]);
 
   const handleExportPDF = async () => {
     setExporting('pdf');
@@ -159,6 +166,10 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
               label="Nivel de Veracidad"
             />
           </View>
+
+          <View style={styles.breakdownWrap}>
+            <ScoreBreakdown breakdown={incident.credibilityBreakdown} />
+          </View>
         </View>
 
         {/* Cuerpo: Un recuadro para el mapa */}
@@ -216,6 +227,25 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
         <View style={styles.storySection}>
           <Text style={styles.sectionLabel}>Relato</Text>
           <Text style={styles.storyText}>"{incident.story}"</Text>
+        </View>
+
+        <View style={styles.historySection}>
+          <Text style={styles.sectionLabel}>Evolución del score</Text>
+          {historialScore.length === 0 ? (
+            <Text style={styles.emptyHistory}>Sin cambios de score registrados.</Text>
+          ) : (
+            historialScore.map((evento) => (
+              <View key={evento.id} style={styles.historyRow}>
+                <View style={styles.historyInfo}>
+                  <Text style={styles.historyMotivo}>{evento.motivo}</Text>
+                  <Text style={styles.historyDate}>
+                    {new Date(evento.fecha).toLocaleString('es-AR')}
+                  </Text>
+                </View>
+                <Text style={styles.historyScore}>{evento.score}%</Text>
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -350,6 +380,44 @@ const styles = StyleSheet.create({
   },
   veracitySection: {
     marginTop: 4,
+  },
+  breakdownWrap: {
+    marginTop: 12,
+  },
+  historySection: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  emptyHistory: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyMotivo: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  historyDate: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  historyScore: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0F172A',
   },
   sectionLabel: {
     fontSize: 13,

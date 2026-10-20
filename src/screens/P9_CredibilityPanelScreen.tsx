@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, CredibilityBreakdown } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { VeracityBar } from '../components/VeracityBar';
+import { ScoreBreakdown } from '../components/ScoreBreakdown';
 import { BottomNavBar } from '../components/BottomNavBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P9_CredibilityPanel'>;
@@ -44,6 +45,15 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
   const identityScore = calculateMyIdentityScore();
   // Score total simulado acumulado con evidencias
   const totalCredibility = Math.min(100, identityScore + 45 + 15);
+
+  const identityBreakdown: CredibilityBreakdown = {
+    identityScore,
+    evidenceScore: 0,
+    corroborationScore: 0,
+    totalScore: identityScore,
+    level: identityScore >= 75 ? 'ALTA' : identityScore >= 40 ? 'SOSPECHOSA' : 'BAJA',
+    trafficLight: identityScore >= 75 ? 'green' : identityScore >= 40 ? 'yellow' : 'red',
+  };
 
   const handleConfirmPhone = async () => {
     setPhoneLoading(true);
@@ -147,6 +157,10 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
               </TouchableOpacity>
             )}
           </View>
+        </View>
+
+        <View style={styles.breakdownSection}>
+          <ScoreBreakdown breakdown={identityBreakdown} />
         </View>
 
         {/* Abajo: Un gráfico de torta simple o líneas simulando la explicación de la fórmula */}
@@ -399,6 +413,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   // Abajo: Un gráfico de torta simple o líneas simulando la explicación de la fórmula
+  breakdownSection: {
+    marginBottom: 16,
+  },
   formulaSection: {
     paddingTop: 8,
   },
