@@ -6,6 +6,7 @@
  */
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, isFirebaseConfigured, actualizarEstadoDenuncia, obtenerDenuncia, getHistorial } from './firebase';
+import { cerrarImpugnacion } from './impugnationService';
 import { IncidentReport } from '../types';
 
 export interface UsuarioAdmin {
@@ -70,12 +71,20 @@ export async function resolverDisputa(params: {
     throw new Error('RF-067: retirar la denuncia exige una nota justificativa');
   }
   const destino = params.decision === 'MANTENER' ? 'PUBLICADA' : 'RESUELTA';
-  return actualizarEstadoDenuncia({
+  const reporte = await actualizarEstadoDenuncia({
     denunciaId: params.denunciaId,
     destino,
     actorId: params.actorId,
     nota: nota || undefined,
   });
+
+  // Cierra la impugnación asociada y notifica al denunciante (RF-076).
+  await cerrarImpugnacion(
+    params.denunciaId,
+    params.decision === 'MANTENER' ? 'PUBLICADA' : 'RETIRADA'
+  );
+
+  return reporte;
 }
 
 /** RF-068: auditoría completa de una denuncia. */

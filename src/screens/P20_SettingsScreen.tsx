@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { registrarSolicitudBaja } from '../services/accountService';
+import { listarNotificaciones, Notificacion } from '../services/notificationService';
 import { BottomNavBar } from '../components/BottomNavBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P20_Settings'>;
@@ -23,6 +24,16 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
   const { user, identityFactors, logout, isAdmin } = useAuth();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [motivo, setMotivo] = useState('');
+  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
+
+  useEffect(() => {
+    const cargar = async () => {
+      const propias = await listarNotificaciones(user?.uid);
+      const todas = propias.length > 0 ? propias : await listarNotificaciones();
+      setNotificaciones(todas);
+    };
+    cargar();
+  }, [user?.uid]);
 
   const handleLogout = async () => {
     Alert.alert('Cerrar sesión', '¿Querés cerrar tu sesión?', [
@@ -104,6 +115,29 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.legalNote}>
               El panel de administración está disponible solo para cuentas autorizadas.
             </Text>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notificaciones</Text>
+          {notificaciones.length === 0 ? (
+            <Text style={styles.legalNote}>No tenés notificaciones.</Text>
+          ) : (
+            notificaciones.slice(0, 5).map((n) => (
+              <View key={n.id} style={styles.notifRow}>
+                <Ionicons
+                  name={n.leida ? 'mail-open-outline' : 'mail-unread-outline'}
+                  size={16}
+                  color="#0F172A"
+                />
+                <View style={styles.notifInfo}>
+                  <Text style={styles.notifMessage}>{n.mensaje}</Text>
+                  <Text style={styles.notifDate}>
+                    {new Date(n.fecha).toLocaleString('es-AR')}
+                  </Text>
+                </View>
+              </View>
+            ))
           )}
         </View>
 
@@ -233,6 +267,27 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 6,
     lineHeight: 16,
+  },
+  notifRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  notifInfo: {
+    flex: 1,
+  },
+  notifMessage: {
+    fontSize: 12,
+    color: '#0F172A',
+    lineHeight: 17,
+  },
+  notifDate: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 2,
   },
   modalOverlay: {
     flex: 1,

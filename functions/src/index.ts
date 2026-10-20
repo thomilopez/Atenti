@@ -7,6 +7,7 @@
  * - detectarSpam: detección de duplicados por contenido similar.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
@@ -185,4 +186,36 @@ export const detectarSpam = onCall(async (request) => {
   }
 
   return { duplicado: false };
+});
+
+// ---------------------------------------------------------------------------
+// Escalación automática de impugnaciones (RF-076)
+// ---------------------------------------------------------------------------
+
+export const escalarImpugnaciones = onSchedule('every 15 minutes', async () => {
+  const ahora = new Date();
+  const snap = await db.collection('impugnaciones').where('escalada', '==', false).get();
+
+  for (const documento of snap.docs) {
+    const datos = documento.data() as {
+      deadline?: string;
+      estado?: string;
+      codigo?: string;
+      denunciaId?: string;
+    };
+
+    if (datos.estado === 'RESUELTA') continue;
+    if (!datos.deadline || new Date(datos.deadline) >= ahora) continue;
+
+    await documento.ref.update({ escalada: true, estado: 'ESCALADA' });
+
+    await db.collection('notificaciones').add({
+      uid: 'admin',
+      tipo: 'ESCALADA',
+      mensaje: `La impugnación de ${datos.codigo ?? documento.id} venció y escaló a moderación.`,
+      denunciaId: datos.denunciaId ?? '',
+      leida: false,
+      fecha: ahora.toISOString(),
+    });
+  }
 });

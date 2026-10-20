@@ -347,3 +347,29 @@ el permiso, la app mantiene la ubicación por defecto y avisa.
 - Máximo **10MB** por archivo.
 - Formatos: **JPG, PNG y PDF**.
 - La vista pública aplica blur; el administrador ve el original en la auditoría.
+
+---
+
+## 18. Impugnaciones y escalación
+
+1. El impugnante entra desde **P2 → "Impugnar esta denuncia"**, ingresa CUIT/DNI
+   y descargo. Al confirmar:
+   - La denuncia pasa a **EN_DISPUTA** y sale del buscador público.
+   - Se registra en la colección `impugnaciones`.
+   - El denunciante recibe una notificación in-app (colección `notificaciones`).
+2. El denunciante ve el caso en **Mis Denuncias → estado de disputa (P22)** con la
+   cuenta regresiva de **72hs** y puede responder.
+3. Al vencer el plazo sin resolución, la Cloud Function programada
+   `escalarImpugnaciones` (cada 15 minutos) marca la impugnación como escalada y
+   notifica a moderación.
+4. Desde el **Panel de administración (P15)** el moderador mantiene o retira la
+   denuncia; la impugnación se cierra y se notifica al denunciante.
+
+Desplegar la función programada:
+
+```bash
+firebase deploy --only functions
+```
+
+> Las notificaciones son in-app por ahora. El push y el centro completo se
+> implementan en el cambio `notificaciones`.
