@@ -571,6 +571,14 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
     return { codigo: existente.trackingCode, pct: existente.credibilityScore, reporte: existente, idempotente: true };
   }
 
+  // RG-02: relato mínimo de 20 caracteres y al menos una evidencia.
+  if ((input.story ?? '').trim().length < 20) {
+    throw new Error('RG-02: el relato debe tener al menos 20 caracteres');
+  }
+  if ((input.evidences ?? []).length < 1) {
+    throw new Error('RG-02: se requiere al menos una evidencia');
+  }
+
   const valorNormalizado = normalizeIdentifier(input.identifierType, input.identifierValue);
   const previas = inMemoryIncidents.filter(
     (i) =>

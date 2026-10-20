@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,12 @@ import {
   ScrollView,
   SafeAreaView,
   Image,
+  Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { VeracityBar } from '../components/VeracityBar';
@@ -16,6 +20,13 @@ import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useAuth } from '../context/AuthContext';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { toPublicProjection } from '../services/masking';
+import {
+  exportarFichaPDF,
+  exportarCSV,
+  generarCSV,
+  hashAutenticidad,
+} from '../services/exportService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P2_ReportDetail'>;
 
@@ -23,6 +34,55 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
   const { incident } = route.params;
   const { isAuthenticated } = useAuth();
   const { setIdentifierType, setIdentifierValue, setCategory } = useReportFlow();
+
+  const proyeccion = useMemo(() => toPublicProjection(incident), [incident]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
+  const [authHash, setAuthHash] = useState('');
+
+  useEffect(() => {
+    hashAutenticidad(proyeccion).then(setAuthHash).catch(() => {});
+  }, [proyeccion]);
+
+  const handleExportPDF = async () => {
+    setExporting('pdf');
+    try {
+      await exportarFichaPDF(proyeccion);
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo exportar la ficha en PDF.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    setExporting('csv');
+    try {
+      const columnas = [
+        { key: 'codigo', label: 'Codigo' },
+        { key: 'titulo', label: 'Titulo' },
+        { key: 'categoria', label: 'Categoria' },
+        { key: 'score', label: 'Score' },
+        { key: 'estado', label: 'Estado' },
+        { key: 'relato', label: 'Relato' },
+        { key: 'ubicacion', label: 'Ubicacion' },
+      ];
+      const fila = {
+        codigo: proyeccion.codigo,
+        titulo: proyeccion.tituloEnmascarado,
+        categoria: proyeccion.categoria,
+        score: proyeccion.credibilidadPct,
+        estado: proyeccion.estado,
+        relato: proyeccion.relato,
+        ubicacion: proyeccion.ubicacion.address,
+      };
+      await exportarCSV(`atenti_${proyeccion.codigo}.csv`, generarCSV([fila], columnas));
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo exportar la ficha en CSV.');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const handleDenounceSameTarget = () => {
     setIdentifierType(incident.identifierType);
@@ -55,7 +115,12 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Detalle de Incidencia</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity
+          onPress={() => setShowExportModal(true)}
+          style={styles.exportIconBtn}
+        >
+          <Ionicons name="share-outline" size={20} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -162,6 +227,55 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
       </View>
 
       <BottomNavBar activeTab="home" />
+
+      <Modal visible={showExportModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Exportar ficha pública</Text>
+            <Text style={styles.modalSubtitle}>{proyeccion.codigo}</Text>
+
+            <View style={styles.qrContainer}>
+              <QRCode value={proyeccion.codigo} size={140} />
+            </View>
+
+            <Text style={styles.hashLabel}>Hash de autenticidad (SHA-256)</Text>
+            <Text style={styles.hashValue} numberOfLines={2}>
+              {authHash || 'Calculando...'}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.exportPdfBtn}
+              onPress={handleExportPDF}
+              disabled={Boolean(exporting)}
+            >
+              {exporting === 'pdf' ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.exportPdfText}>Exportar PDF</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.exportCsvBtn}
+              onPress={handleExportCSV}
+              disabled={Boolean(exporting)}
+            >
+              {exporting === 'csv' ? (
+                <ActivityIndicator color="#0F172A" />
+              ) : (
+                <Text style={styles.exportCsvText}>Exportar CSV</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.closeExportBtn}
+              onPress={() => setShowExportModal(false)}
+            >
+              <Text style={styles.closeExportText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -318,5 +432,90 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  exportIconBtn: {
+    padding: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 16,
+  },
+  qrContainer: {
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  hashLabel: {
+    fontSize: 10,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  hashValue: {
+    fontSize: 10,
+    color: '#334155',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  exportPdfBtn: {
+    width: '100%',
+    backgroundColor: '#000000',
+    borderRadius: 6,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  exportPdfText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  exportCsvBtn: {
+    width: '100%',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  exportCsvText: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  closeExportBtn: {
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  closeExportText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

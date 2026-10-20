@@ -99,6 +99,15 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleSendReport = async () => {
+    // RG-02: se requiere al menos una evidencia.
+    if (evidences.length === 0) {
+      Alert.alert(
+        'Evidencia requerida',
+        'Adjuntá al menos una captura o comprobante para enviar el reporte.'
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
       const result = await submitReport();
@@ -224,10 +233,13 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <TouchableOpacity
-          style={[styles.submitMainBtn, submitting && styles.btnDisabled]}
+          style={[
+            styles.submitMainBtn,
+            (submitting || evidences.length === 0) && styles.btnDisabled,
+          ]}
           activeOpacity={0.88}
           onPress={handleSendReport}
-          disabled={submitting}
+          disabled={submitting || evidences.length === 0}
         >
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" />

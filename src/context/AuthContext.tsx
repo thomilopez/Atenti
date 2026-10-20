@@ -6,6 +6,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { UserIdentityFactors, UserProfile } from '../types';
+import { env, hasRealFirebaseConfig } from '../services/env';
 import {
   authService,
   SesionUsuario,
@@ -17,6 +18,8 @@ import {
 interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
+  /** Acceso temporal al panel admin (RF-015 pendiente). */
+  isAdmin: boolean;
   identityFactors: UserIdentityFactors;
   dniEstado: EstadoDNI;
   loginWithGoogle: () => Promise<void>;
@@ -50,6 +53,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [dniEstado, setDniEstado] = useState<EstadoDNI>('verificando');
 
   const identityFactors = user?.identityFactors || FACTORES_VACIOS;
+
+  // En modo demo el panel admin está abierto para poder probar; con Firebase
+  // real solo lo ven los emails configurados (roles formales: RF-015).
+  const isAdmin = !hasRealFirebaseConfig()
+    ? true
+    : Boolean(user?.email && env.adminEmails.includes(user.email.toLowerCase()));
 
   const loginWithGoogle = async () => {
     const sesion = await authService.signInWithGoogle();
@@ -100,6 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       value={{
         user,
         isAuthenticated: !!user && user.identityFactors.googleAuth,
+        isAdmin,
         identityFactors,
         dniEstado,
         loginWithGoogle,

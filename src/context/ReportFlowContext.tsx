@@ -40,6 +40,9 @@ interface ReportFlowContextType {
   setStory: (val: string) => void;
   location: LocationData;
   setLocation: (val: LocationData) => void;
+  /** RG-03: indica si el usuario confirmó explícitamente un pin en el mapa. */
+  pinConfirmado: boolean;
+  setPinConfirmado: (val: boolean) => void;
   evidences: EvidenceItem[];
   addEvidence: (evidence: EvidenceItem) => void;
   removeEvidence: (id: string) => void;
@@ -71,6 +74,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
   const [identifierValue, setIdentifierValue] = useState<string>('ju.mp');
   const [story, setStory] = useState<string>('');
   const [location, setLocation] = useState<LocationData>(defaultLocation);
+  const [pinConfirmado, setPinConfirmado] = useState<boolean>(false);
   const [evidences, setEvidences] = useState<EvidenceItem[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [activeOperationKey, setActiveOperationKey] = useState<string>(() => generateOperationKey());
@@ -112,6 +116,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
     setIdentifierValue(draft.identifierValue);
     setStory(draft.story);
     setLocation(draft.location);
+    setPinConfirmado(true);
     setEvidences(draft.evidences || []);
     setCredibilityScore(draft.credibilityScore || 20);
   };
@@ -124,6 +129,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
     setIdentifierValue('');
     setStory('');
     setLocation(defaultLocation);
+    setPinConfirmado(false);
     setEvidences([]);
     setCredibilityScore(20);
   };
@@ -254,6 +260,8 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
         setStory,
         location,
         setLocation,
+        pinConfirmado,
+        setPinConfirmado,
         evidences,
         addEvidence,
         removeEvidence,

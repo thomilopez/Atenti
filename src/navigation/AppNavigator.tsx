@@ -15,6 +15,11 @@ import { P10_MisDenunciasScreen } from '../screens/P10_MisDenunciasScreen';
 import { P11_TrackingCodeScreen } from '../screens/P11_TrackingCodeScreen';
 import { P12_EditReportScreen } from '../screens/P12_EditReportScreen';
 import { P13_SearchResultsScreen } from '../screens/P13_SearchResultsScreen';
+import { P14_AdminDashboardScreen } from '../screens/P14_AdminDashboardScreen';
+import { P15_AdminDisputeScreen } from '../screens/P15_AdminDisputeScreen';
+import { P16_AdminCategoriesScreen } from '../screens/P16_AdminCategoriesScreen';
+import { P17_AdminUsersScreen } from '../screens/P17_AdminUsersScreen';
+import { P18_AdminAuditScreen } from '../screens/P18_AdminAuditScreen';
 import { P20_SettingsScreen } from '../screens/P20_SettingsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -75,6 +80,13 @@ export const AppNavigator: React.FC = () => {
 
         {/* P13 - Resultados de búsqueda con filtros y paginación */}
         <Stack.Screen name="P13_SearchResults" component={P13_SearchResultsScreen} />
+
+        {/* Administración */}
+        <Stack.Screen name="P14_AdminDashboard" component={P14_AdminDashboardScreen} />
+        <Stack.Screen name="P15_AdminDispute" component={P15_AdminDisputeScreen} />
+        <Stack.Screen name="P16_AdminCategories" component={P16_AdminCategoriesScreen} />
+        <Stack.Screen name="P17_AdminUsers" component={P17_AdminUsersScreen} />
+        <Stack.Screen name="P18_AdminAudit" component={P18_AdminAuditScreen} />
 
         {/* P20 - Ajustes */}
         <Stack.Screen name="P20_Settings" component={P20_SettingsScreen} />

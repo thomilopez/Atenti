@@ -87,11 +87,13 @@ export interface CategoriaTipo {
   activa: boolean;
 }
 
-/** Catálogo paramétrico Etapa 3 §3 (CategoriaTipo). */
+/** Catálogo paramétrico por defecto Etapa 3 §3 (CategoriaTipo). */
 export const CATEGORIAS: CategoriaTipo[] = [
-  { id: 'VIRTUAL', nombre: 'Incidencia Virtual', requiereUbicacion: false, activa: true },
-  { id: 'LOCAL_FISICO', nombre: 'Local Físico', requiereUbicacion: true, activa: true },
-  { id: 'FALSO_ALIAS', nombre: 'Alias Falso', requiereUbicacion: false, activa: true },
+  { id: 'ESTAFA_BANCARIA', nombre: 'Estafa Bancaria', requiereUbicacion: false, activa: true },
+  { id: 'PHISHING', nombre: 'Phishing / Suplantación', requiereUbicacion: false, activa: true },
+  { id: 'COMERCIO_VIRTUAL', nombre: 'Comercio Virtual Falso', requiereUbicacion: false, activa: true },
+  { id: 'LOCAL_FISICO', nombre: 'Local Físico Ilícito', requiereUbicacion: true, activa: true },
+  { id: 'CLONACION_IDENTIDAD', nombre: 'Clonación de Identidad', requiereUbicacion: false, activa: true },
 ];
 
 export function listarCategorias(): CategoriaTipo[] {

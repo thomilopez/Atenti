@@ -29,6 +29,8 @@ export interface AtentiEnv {
   };
   cloudFunctionsBaseUrl: string;
   functionsRegion: string;
+  /** Emails autorizados a ver el panel de administración (temporal, RF-015 pendiente). */
+  adminEmails: string[];
 }
 
 /** Límite por defecto de denuncias diarias por usuario (RF-090). */
@@ -77,6 +79,10 @@ export function loadEnv(): AtentiEnv {
     },
     cloudFunctionsBaseUrl: read('EXPO_PUBLIC_CLOUD_FUNCTIONS_BASE_URL'),
     functionsRegion: read('EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION') || 'us-central1',
+    adminEmails: read('EXPO_PUBLIC_ADMIN_EMAILS')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
   };
 }
 

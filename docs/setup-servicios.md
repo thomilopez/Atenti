@@ -190,7 +190,9 @@ Las reglas del repo ya definen roles U0/U1/U3/U4 y la visibilidad por estado.
    ```bash
    cp .env.example .env
    ```
-2. Completá los valores de Firebase (paso 11), Maps, Functions y RENAPER.
+2. Completá los valores de Firebase (paso 11), Maps, Functions, RENAPER y
+   `EXPO_PUBLIC_ADMIN_EMAILS` (lista separada por comas de cuentas con acceso al
+   panel de administración).
 3. Verificá que no falte nada:
    ```bash
    node scripts/check-env.js
@@ -261,7 +263,35 @@ Debe pasar:
 
 ---
 
-## 15. Seguridad y costos
+## 15. Administración y categorías
+
+1. Definí las cuentas administradoras en `.env`:
+   ```env
+   EXPO_PUBLIC_ADMIN_EMAILS=admin@atenti.com,moderador@atenti.com
+   ```
+   En modo demo (sin Firebase) el panel admin queda abierto para poder probar.
+2. El catálogo de categorías se siembra automáticamente la primera vez que se abre
+   el panel o el formulario. También podés sembrarlo desde Firestore creando la
+   colección `categorias` con documentos:
+   ```json
+   { "nombre": "Estafa Bancaria", "requiereUbicacion": false, "activa": true }
+   ```
+3. Desde **Ajustes → Panel de administración** podés:
+   - Resolver disputas (mantener publicada o retirar).
+   - Ver la auditoría completa de una denuncia.
+   - Crear, editar y activar/desactivar categorías.
+   - Suspender usuarios.
+   - Exportar el dataset anonimizado (CSV).
+4. Las reglas de Firestore ya permiten escritura de `categorias` solo a admin y
+   protegen `usuarios`, `eliminaciones` y `solicitudes_baja`.
+
+> Los roles formales U0/U1/U3/U4 (RF-015) siguen pendientes: hoy el acceso se
+> controla por `EXPO_PUBLIC_ADMIN_EMAILS` en el cliente. Cuando se implementen los
+> custom claims, reemplazar `isAdmin` en `AuthContext` por el claim del token.
+
+---
+
+## 16. Seguridad y costos
 
 - **Nunca** loguees ni commitees claves. `.env` está en `.gitignore`.
 - Restringí las API keys por aplicación y por API.

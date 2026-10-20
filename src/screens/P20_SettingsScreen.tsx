@@ -20,7 +20,7 @@ import { BottomNavBar } from '../components/BottomNavBar';
 type Props = NativeStackScreenProps<RootStackParamList, 'P20_Settings'>;
 
 export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
-  const { user, identityFactors, logout } = useAuth();
+  const { user, identityFactors, logout, isAdmin } = useAuth();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [motivo, setMotivo] = useState('');
 
@@ -88,6 +88,23 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
               DNI: {identityFactors.dniVerified ? 'Verificado' : 'Pendiente'}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Administración</Text>
+          {isAdmin ? (
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => navigation.navigate('P14_AdminDashboard')}
+            >
+              <Ionicons name="shield-checkmark-outline" size={18} color="#0F172A" />
+              <Text style={styles.actionText}>Panel de administración</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.legalNote}>
+              El panel de administración está disponible solo para cuentas autorizadas.
+            </Text>
+          )}
         </View>
 
         <View style={styles.section}>

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentReport, RootStackParamList } from '../types';
 import { getIncidents } from '../services/firebase';
+import { sugerirIdentificadores, sugerirCorreccion } from '../services/autocompleteService';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useAuth } from '../context/AuthContext';
 import { DraftsListModal } from '../components/DraftsListModal';
@@ -34,7 +35,12 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChip, setSelectedChip] = useState<IdentifierType | null>(null);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
+  const [todosIncidentes, setTodosIncidentes] = useState<IncidentReport[]>([]);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
+
+  useEffect(() => {
+    getIncidents().then(setTodosIncidentes).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fetchIncidents = async () => {
@@ -43,6 +49,12 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
     };
     fetchIncidents();
   }, [selectedChip, searchQuery]);
+
+  const sugerencias = sugerirIdentificadores(searchQuery, todosIncidentes);
+  const correccion =
+    searchQuery.trim().length >= 3 && incidents.length === 0
+      ? sugerirCorreccion(searchQuery, todosIncidentes)
+      : null;
 
   const handleFabPress = () => {
     if (!isAuthenticated) {
@@ -84,6 +96,43 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           )}
         </View>
+
+        {sugerencias.length > 0 && (
+          <View style={styles.suggestionsBox}>
+            {sugerencias.map((s) => (
+              <TouchableOpacity
+                key={`${s.type}:${s.value}`}
+                style={styles.suggestionItem}
+                onPress={() => {
+                  setSearchQuery(s.value);
+                  setSelectedChip(s.type);
+                }}
+              >
+                <Ionicons name="search-outline" size={14} color="#64748B" />
+                <Text style={styles.suggestionText} numberOfLines={1}>
+                  [{s.type}] {s.value}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {correccion && (
+          <TouchableOpacity
+            style={styles.correctionRow}
+            onPress={() => {
+              setSearchQuery(correccion.value);
+              setSelectedChip(correccion.type);
+            }}
+          >
+            <Text style={styles.correctionText}>
+              Quiso decir:{' '}
+              <Text style={styles.correctionValue}>
+                [{correccion.type}] {correccion.value}
+              </Text>
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Filtros: 4 rectángulos pequeños redondeados (Chips) debajo del buscador */}
         <View style={styles.chipsContainer}>
@@ -178,6 +227,42 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#0F172A',
+  },
+  suggestionsBox: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  suggestionText: {
+    fontSize: 13,
+    color: '#0F172A',
+    fontWeight: '600',
+    flex: 1,
+  },
+  correctionRow: {
+    marginTop: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  correctionText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  correctionValue: {
+    color: '#0F172A',
+    fontWeight: '800',
   },
   chipsContainer: {
     flexDirection: 'row',

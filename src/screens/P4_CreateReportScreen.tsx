@@ -15,17 +15,10 @@ import { IdentifierType, IncidentCategory, RootStackParamList } from '../types';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
-import { validarCbu, validarTelefonoE164 } from '../services/normalize';
+import { validarCbu, validarTelefonoE164, CATEGORIAS, CategoriaTipo } from '../services/normalize';
+import { listarCategoriasActivas } from '../services/categoryService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
-
-const CATEGORIES: IncidentCategory[] = [
-  'Estafa Bancaria',
-  'Phishing / Suplantación',
-  'Comercio Virtual Falso',
-  'Local Físico Ilícito',
-  'Clonación de Identidad',
-];
 
 const IDENTIFIER_TYPES: IdentifierType[] = ['Alias', 'CBU', 'Tel', 'Local'];
 
@@ -41,13 +34,25 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
     setStory,
     location,
     setLocation,
+    pinConfirmado,
+    setPinConfirmado,
     saveCurrentDraft,
   } = useReportFlow();
 
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [identifierDropdownOpen, setIdentifierDropdownOpen] = useState(false);
+  const [categorias, setCategorias] = useState<CategoriaTipo[]>(CATEGORIAS.map((c) => ({ ...c })));
 
   const validationError = route.params?.validationError;
+  const categoriaSeleccionada = categorias.find((c) => c.nombre === category);
+  const requiereUbicacion = Boolean(categoriaSeleccionada?.requiereUbicacion);
+  const relatoValido = story.trim().length >= 20;
+
+  useEffect(() => {
+    listarCategoriasActivas()
+      .then((activas) => setCategorias(activas))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (route.params?.prefilledIdentifier) {
@@ -86,6 +91,21 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
 
     if (!story.trim()) {
       Alert.alert('Relato requerido', 'Contanos brevemente qué ocurrió.');
+      return;
+    }
+
+    // RG-02: relato mínimo de 20 caracteres.
+    if (story.trim().length < 20) {
+      Alert.alert('Relato muy corto', 'El relato debe tener al menos 20 caracteres.');
+      return;
+    }
+
+    // RG-03: las categorías con ubicación obligatoria exigen un pin confirmado.
+    if (requiereUbicacion && !pinConfirmado) {
+      Alert.alert(
+        'Ubicación requerida',
+        'Para esta categoría tenés que fijar el pin sobre el mapa.'
+      );
       return;
     }
 
@@ -134,17 +154,17 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
 
           {categoryDropdownOpen && (
             <View style={styles.dropdownOptions}>
-              {CATEGORIES.map((cat) => (
+              {categorias.map((cat) => (
                 <TouchableOpacity
-                  key={cat}
+                  key={cat.id}
                   style={styles.optionItem}
                   onPress={() => {
-                    setCategory(cat);
+                    setCategory(cat.nombre);
                     setCategoryDropdownOpen(false);
                   }}
                 >
-                  <Text style={[styles.optionText, category === cat && styles.optionTextSelected]}>
-                    {cat}
+                  <Text style={[styles.optionText, category === cat.nombre && styles.optionTextSelected]}>
+                    {cat.nombre}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -223,6 +243,9 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
             value={story}
             onChangeText={setStory}
           />
+          <Text style={[styles.storyCounter, relatoValido ? styles.storyCounterOk : styles.storyCounterError]}>
+            {story.trim().length}/20 caracteres mínimos
+          </Text>
         </View>
 
         {/* Un rectángulo mediano (Mapa para fijar pin) */}
@@ -231,12 +254,20 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
           <View style={styles.mapRectangle}>
             <MapViewWrapper
               selectedLocation={location}
-              onSelectLocation={(loc) => setLocation(loc)}
+              onSelectLocation={(loc) => {
+                setLocation(loc);
+                setPinConfirmado(true);
+              }}
               centerLatitude={location.latitude}
               centerLongitude={location.longitude}
             />
           </View>
           <Text style={styles.locationHelp}>📍 {location.address}</Text>
+          {requiereUbicacion && !pinConfirmado && (
+            <Text style={styles.pinRequiredHelp}>
+              Esta categoría requiere que fijes el pin en el mapa.
+            </Text>
+          )}
         </View>
       </ScrollView>
 
@@ -248,9 +279,10 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
         </View>
 
         <TouchableOpacity
-          style={styles.nextSecondaryBtn}
+          style={[styles.nextSecondaryBtn, !relatoValido && styles.btnDisabled]}
           activeOpacity={0.88}
           onPress={handleNext}
+          disabled={!relatoValido}
         >
           <Text style={styles.nextSecondaryBtnText}>Siguiente</Text>
           <Ionicons name="arrow-forward" size={16} color="#000000" />
@@ -395,6 +427,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     marginTop: 4,
+  },
+  pinRequiredHelp: {
+    fontSize: 11,
+    color: '#DC2626',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  storyCounter: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  storyCounterOk: {
+    color: '#059669',
+  },
+  storyCounterError: {
+    color: '#DC2626',
+  },
+  btnDisabled: {
+    opacity: 0.5,
   },
   // Pie de pantalla (Fijo)
   fixedFooter: {

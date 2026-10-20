@@ -5,12 +5,11 @@
 
 export type IdentifierType = 'Alias' | 'CBU' | 'Tel' | 'Local';
 
-export type IncidentCategory =
-  | 'Estafa Bancaria'
-  | 'Phishing / Suplantación'
-  | 'Comercio Virtual Falso'
-  | 'Local Físico Ilícito'
-  | 'Clonación de Identidad';
+/**
+ * Categoría de incidencia. Es un string para permitir categorías
+ * paramétricas administrables (RF-027/RF-069).
+ */
+export type IncidentCategory = string;
 
 export type VeracityLevel = 'ALTA' | 'SOSPECHOSA' | 'BAJA';
 
@@ -127,5 +126,10 @@ export type RootStackParamList = {
   P11_TrackingCode: { codigo?: string } | undefined;
   P12_EditReport: { incident: IncidentReport };
   P13_SearchResults: { initialQuery?: string; initialType?: IdentifierType } | undefined;
+  P14_AdminDashboard: undefined;
+  P15_AdminDispute: { incident: IncidentReport };
+  P16_AdminCategories: undefined;
+  P17_AdminUsers: undefined;
+  P18_AdminAudit: { incidentId: string };
   P20_Settings: undefined;
 };

@@ -10,7 +10,8 @@ export type DenunciaEstado = 'RECIBIDA' | 'PUBLICADA' | 'EN_DISPUTA' | 'RESUELTA
 const TRANSITIONS: Record<DenunciaEstado, DenunciaEstado[]> = {
   RECIBIDA: ['PUBLICADA'],
   PUBLICADA: ['EN_DISPUTA'],
-  EN_DISPUTA: ['RESUELTA'],
+  // RF-067: una disputa se resuelve manteniendo la publicación o retirándola.
+  EN_DISPUTA: ['PUBLICADA', 'RESUELTA'],
   RESUELTA: [],
 };
 

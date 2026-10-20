@@ -71,9 +71,16 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       {/* Cabecera: Credibilidad */}
       <View style={styles.topHeader}>
+        <View style={{ width: 36 }} />
         <View style={styles.credibilityPill}>
           <Text style={styles.credibilityPillText}>Credibilidad</Text>
         </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('P20_Settings')}
+          style={styles.settingsBtn}
+        >
+          <Ionicons name="settings-outline" size={22} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -303,11 +310,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  settingsBtn: {
+    padding: 4,
   },
   credibilityPill: {
     backgroundColor: '#F1F5F9',
