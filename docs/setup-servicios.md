@@ -471,3 +471,158 @@ consentimiento. Sin consentimiento no se registra ningún evento.
    corroboración de un objetivo y resolución de disputa.
 
 > Los avisos in-app se guardan siempre, aunque el push esté deshabilitado o falle.
+
+---
+
+## 22. Cómo obtener cada valor de `.env`
+
+Creá el archivo en la raíz del proyecto copiando la plantilla:
+
+```bash
+cp .env.example .env
+```
+
+> `.env` ya está en `.gitignore`. **No lo commitees** ni compartas sus valores.
+
+### 22.1 Resumen rápido
+
+| Variable | De dónde sale | Obligatoria |
+|---|---|---|
+| `EXPO_PUBLIC_FIREBASE_API_KEY` | Firebase → Project settings → Your apps → Web | Sí (backend real) |
+| `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` | mismo `firebaseConfig` | Sí |
+| `EXPO_PUBLIC_FIREBASE_PROJECT_ID` | mismo `firebaseConfig` | Sí |
+| `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET` | mismo `firebaseConfig` | Sí |
+| `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | mismo `firebaseConfig` | Sí |
+| `EXPO_PUBLIC_FIREBASE_APP_ID` | mismo `firebaseConfig` | Sí |
+| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Cloud → Credentials | Sí (mapa real) |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google Cloud → OAuth 2.0 Client IDs (Web) | Para Google Sign-In |
+| `EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION` | Región donde desplegaste Functions | Opcional (default `us-central1`) |
+| `EXPO_PUBLIC_CLOUD_FUNCTIONS_BASE_URL` | Solo si usás HTTP directo | Opcional |
+| `EXPO_PUBLIC_RENAPER_ENABLED` | `true` cuando tengas credenciales | Opcional |
+| `EXPO_PUBLIC_RENAPER_ENDPOINT` | Te lo da RENAPER | Con RENAPER |
+| `EXPO_PUBLIC_RENAPER_API_KEY` | Te lo da RENAPER | Con RENAPER |
+| `EXPO_PUBLIC_RATE_LIMIT_DAILY` | Política del proyecto | Opcional (default `10`) |
+| `EXPO_PUBLIC_ADMIN_EMAILS` | Tus cuentas de Google admin | Opcional |
+| `EXPO_PUBLIC_SENTRY_DSN` | Sentry → Client Keys | Opcional |
+
+**Sin ninguna variable** la app funciona en **modo demo** (fallback en memoria).
+**Para el backend real** alcanza con las 6 de Firebase + la de Maps.
+
+### 22.2 Firebase (6 variables)
+
+1. Entrá a <https://console.firebase.google.com/> y abrí tu proyecto.
+2. Engranaje → **Project settings** → pestaña **General**.
+3. Bajá hasta **Your apps**. Si no hay ninguna, tocá **Add app → Web**
+   (`</>`), poné un nombre (ej. `atenti-web`) y registrá.
+4. Aparece un bloque `firebaseConfig`. Copiá cada campo a tu `.env`:
+
+```js
+const firebaseConfig = {
+  apiKey: "AIza...",                        // EXPO_PUBLIC_FIREBASE_API_KEY
+  authDomain: "atenti-prod.firebaseapp.com",// EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+  projectId: "atenti-prod",                 // EXPO_PUBLIC_FIREBASE_PROJECT_ID
+  storageBucket: "atenti-prod.appspot.com", // EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+  messagingSenderId: "1234567890",          // EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+  appId: "1:1234567890:web:abcdef123456",   // EXPO_PUBLIC_FIREBASE_APP_ID
+};
+```
+
+> Estos valores son **identificadores públicos del cliente**, no secretos. La
+> seguridad real la dan las reglas de Firestore/Storage y Firebase Auth.
+
+### 22.3 Google Maps API key
+
+1. Entrá a <https://console.cloud.google.com/> y seleccioná **el mismo proyecto**
+   que el de Firebase.
+2. **APIs & Services → Library** y habilitá:
+   - Maps SDK for Android
+   - Maps SDK for iOS
+   - Maps JavaScript API (web)
+   - Geocoding API
+3. **APIs & Services → Credentials → Create credentials → API key**.
+4. Copiá la key a `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`.
+5. Recomendado: editá la key y restringila por aplicación y por API.
+6. Para Android, agregá la huella **SHA-1** en Firebase → Project settings →
+   Your apps → Android (necesario para Google Maps y Google Sign-In).
+
+### 22.4 Google Web Client ID (Google Sign-In)
+
+1. Google Cloud Console → **APIs & Services → Credentials**.
+2. En **OAuth 2.0 Client IDs**, buscá el cliente de tipo **Web application**
+   (Firebase lo crea solo cuando habilitás Google en Authentication).
+   Si no existe, creá uno de tipo **Web application**.
+3. Copiá el **Client ID** (termina en `.apps.googleusercontent.com`) a
+   `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`.
+4. Verificá que Google esté habilitado en Firebase → Authentication → Sign-in
+   method.
+
+### 22.5 Cloud Functions (región y URL)
+
+- `EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION`: la región del deploy. Si no la
+  cambiaste, es `us-central1`. La app usa el SDK de Firebase
+  (`httpsCallable`), así que **no necesitás la URL**.
+- `EXPO_PUBLIC_CLOUD_FUNCTIONS_BASE_URL`: solo si llamás functions por HTTP
+  directo. Formato: `https://<region>-<projectId>.cloudfunctions.net`.
+  Si usás el SDK, dejalo vacío.
+
+### 22.6 RENAPER (DNI)
+
+1. Mientras no tengas acceso, dejá:
+   ```env
+   EXPO_PUBLIC_RENAPER_ENABLED=false
+   ```
+   El DNI queda en estado **"Verificando"** y la app sigue funcionando.
+2. Cuando RENAPER te habilite el servicio, te entrega un **endpoint** y una
+   **API key**. Completá:
+   ```env
+   EXPO_PUBLIC_RENAPER_ENABLED=true
+   EXPO_PUBLIC_RENAPER_ENDPOINT=https://el-endpoint-que-te-dieron
+   EXPO_PUBLIC_RENAPER_API_KEY=la-clave-que-te-dieron
+   ```
+
+### 22.7 Rate limit y administración
+
+- `EXPO_PUBLIC_RATE_LIMIT_DAILY`: cuántas denuncias por usuario por día. Por
+  defecto `10`. Tiene que coincidir con `RATE_LIMIT_DAILY` de Functions.
+- `EXPO_PUBLIC_ADMIN_EMAILS`: emails de las cuentas que pueden ver el panel de
+  administración, separados por coma. Usá el mismo email con el que iniciás
+  sesión con Google. Ejemplo:
+  ```env
+  EXPO_PUBLIC_ADMIN_EMAILS=admin@atenti.com,moderador@atenti.com
+  ```
+
+### 22.8 Sentry (opcional)
+
+1. Entrá a <https://sentry.io> y creá un proyecto (React Native / Expo).
+2. **Settings → Client Keys (DSN)** y copiá el DSN:
+   ```
+   https://<clave>@o<org>.ingest.sentry.io/<proyecto>
+   ```
+3. Pegalo en `EXPO_PUBLIC_SENTRY_DSN`. Sin DSN, la app registra errores en local.
+
+### 22.9 Project ID de EAS (no va en `.env`)
+
+El token de push necesita el `projectId` de EAS, que va en `app.json`, no en
+`.env`:
+
+```bash
+npx eas init
+```
+
+Copiá el `projectId` que te da en:
+
+```json
+"extra": { "eas": { "projectId": "TU_PROJECT_ID" } }
+```
+
+### 22.10 Verificar que quedó bien
+
+```bash
+node scripts/check-env.js
+```
+
+Si falta una variable obligatoria, el script te dice cuál. Después:
+
+```bash
+npm run verify:all
+```
