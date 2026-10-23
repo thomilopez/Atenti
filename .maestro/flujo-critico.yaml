@@ -1,4 +1,4 @@
-appId: com.atenti.app
+appId: atenti.android
 ---
 - launchApp
 - assertVisible: "Buscar por Alias, CBU, Teléfono o Local..."

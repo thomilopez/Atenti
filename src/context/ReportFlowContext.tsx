@@ -75,7 +75,7 @@ const ReportFlowContext = createContext<ReportFlowContextType | undefined>(undef
 
 export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
   const { isConnected } = useConnectivity();
-  const { identityFactors } = useAuth();
+  const { identityFactors, user } = useAuth();
 
   const [category, setCategory] = useState<IncidentCategory>('Estafa Bancaria');
   const [identifierType, setIdentifierType] = useState<IdentifierType>('Alias');
@@ -189,8 +189,8 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       story: draft.story,
       location: draft.location,
       evidences: draft.evidences ?? [],
-      uid: 'usr_atenti_reporter_demo',
-      userEmail: 'denunciante.atenti@gmail.com',
+      uid: user?.uid ?? 'anonimo',
+      userEmail: user?.email ?? '',
       ddjjAceptada: true,
       googleVerificado: true,
       claveOperacion: draft.claveOperacion,
@@ -216,7 +216,8 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('NETWORK_OFFLINE_ERROR');
     }
 
-    const uid = 'usr_atenti_reporter_demo';
+    const uid = user?.uid ?? 'usr_atenti_reporter_demo';
+    const userEmail = user?.email ?? 'denunciante.atenti@gmail.com';
 
     // RF-090 / RF-091: validaciones server-side antes de registrar.
     if (isFirebaseConfigured) {
@@ -246,7 +247,7 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       location,
       evidences,
       uid,
-      userEmail: 'denunciante.atenti@gmail.com',
+      userEmail,
       ddjjAceptada: true,
       googleVerificado: true,
       claveOperacion: activeOperationKey,

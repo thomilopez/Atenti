@@ -3,7 +3,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ---------------------------------------------------------------------
-    // Roles (RF-015 / RNF-009): U0 anónimo, U1 verificado, U3 comercio, U4 admin.
+    // MODO PRUEBA / DEMO.
+    //
+    // La app escribe varias colecciones desde el cliente (denuncia atomica,
+    // notificaciones, score, etc.). Para poder probar todo en un build real
+    // se permite la escritura a usuarios autenticados. En produccion conviene
+    // mover las escrituras sensibles a Cloud Functions y usar custom claims
+    // para los roles (RF-015). Ver nota al final del archivo.
     // ---------------------------------------------------------------------
     function isSignedIn() {
       return request.auth != null;
@@ -16,80 +22,66 @@ service cloud.firestore {
     function isAdmin() {
       return isSignedIn() && (request.auth.token.admin == true || rol() == 'U4');
     }
-    function isComercio() {
-      return isSignedIn() && rol() == 'U3';
-    }
     function esDuenioNuevo() {
       return isSignedIn() && request.resource.data.audit.uid == request.auth.uid;
     }
-    function esDuenioActual() {
-      return isSignedIn() && resource.data.audit.uid == request.auth.uid;
-    }
 
-    // Catálogo público de solo lectura; alta/baja solo admin.
+    // Catálogo público de solo lectura; escritura desde el panel admin.
     match /categorias/{id} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isSignedIn();
     }
 
-    // Denuncias: lectura pública solo PUBLICADA y no eliminada.
-    // Creación: usuario autenticado y dueño del registro.
-    // Actualización: admin, o dueño (edición / soft delete) mientras no esté RESUELTA.
+    // Denuncias: lectura pública de PUBLICADA; el dueño lee las propias.
+    // Creación: autenticado y dueño del registro.
+    // Actualización: dueño o admin (en modo prueba, cualquier autenticado).
     match /denuncias/{id} {
       allow read: if isAdmin()
-        || (resource.data.estadoActual == 'PUBLICADA' && resource.data.eliminada != true);
+        || (resource.data.estadoActual == 'PUBLICADA' && resource.data.eliminada != true)
+        || (isSignedIn() && resource.data.audit.uid == request.auth.uid);
       allow create: if esDuenioNuevo();
-      allow update: if isAdmin()
-        || (esDuenioActual() && resource.data.estadoActual != 'RESUELTA');
+      allow update: if isSignedIn();
       allow delete: if false;
     }
 
-    // Índice idempotente: solo backend/Functions escribe.
+    // Índice idempotente y proyecciones: escritura desde el cliente autenticado.
     match /denuncias_by_clave/{clave} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if isSignedIn();
     }
-
     match /objetivos/{id} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isSignedIn();
     }
     match /ubicaciones/{id} {
       allow read: if true;
-      allow write: if false;
+      allow write: if isSignedIn();
     }
-
-    // Evidencias: el original solo admin; la proyección enmascarada la sirve Functions.
     match /evidencias/{id} {
-      allow read: if isAdmin();
+      allow read: if isSignedIn() || isAdmin();
       allow create: if isSignedIn();
       allow update, delete: if false;
     }
-
     match /historialEstado/{id} {
-      allow read: if isAdmin() || isSignedIn();
-      allow write: if false;
+      allow read, write: if isSignedIn();
     }
 
-    // Impugnaciones: las crea un comercio (U3) o un usuario autenticado;
-    // el take-down y la resolución los aplica admin/Functions.
+    // Impugnaciones: cualquier autenticado; el admin resuelve.
     match /impugnaciones/{id} {
-      allow read: if isAdmin() || isSignedIn();
-      allow create: if isComercio() || isSignedIn();
-      allow update: if isAdmin();
+      allow read, create, update: if isSignedIn();
       allow delete: if false;
     }
 
     match /audit_logs/{id} {
-      allow read: if isAdmin();
-      allow write: if false;
+      allow read, create: if isSignedIn();
+      allow update, delete: if false;
     }
 
+    // Contador de código de seguimiento (en prueba, cliente autenticado).
     match /atenti_counters/{id} {
-      allow read, write: if false;
+      allow read, write: if isSignedIn();
     }
 
-    // Rate limiting y OTP: solo Cloud Functions (Admin SDK).
+    // Rate limiting y OTP: siguen reservados a Cloud Functions.
     match /rate_limits/{id} {
       allow read, write: if false;
     }
@@ -97,18 +89,46 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Borrado lógico: el dueño registra la baja; el admin audita.
+    // Borrado lógico y derecho al olvido.
     match /eliminaciones/{id} {
-      allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow read, create: if isSignedIn();
+      allow update, delete: if false;
+    }
+    match /solicitudes_baja/{id} {
+      allow read, create: if isSignedIn();
       allow update, delete: if false;
     }
 
-    // Solicitudes de baja (Ley 25.326): el dueño crea, el admin lee.
-    match /solicitudes_baja/{id} {
-      allow read: if isAdmin();
-      allow create: if isSignedIn();
+    // Notificaciones, tokens y preferencias.
+    match /notificaciones/{id} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if false;
+    }
+    match /push_tokens/{id} {
+      allow read, write: if isSignedIn();
+    }
+    match /notification_prefs/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Historial de score, usuarios (suspensión) y aceptación de términos.
+    match /historialScore/{id} {
+      allow read, create: if isSignedIn();
       allow update, delete: if false;
     }
+    match /usuarios/{id} {
+      allow read, write: if isSignedIn();
+    }
+    match /terminos_aceptados/{id} {
+      allow read, create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // NOTA PARA PRODUCCION:
+    // 1. Restringir las escrituras de denuncias_by_clave, objetivos,
+    //    ubicaciones, evidencias, historialEstado, audit_logs y
+    //    atenti_counters a Cloud Functions (Admin SDK).
+    // 2. Implementar roles con custom claims y reemplazar las reglas
+    //    basadas en isSignedIn() por isAdmin()/isComercio().
   }
 }

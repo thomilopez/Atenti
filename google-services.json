@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "640440717269",
+    "project_id": "atenti-d74a0",
+    "storage_bucket": "atenti-d74a0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:640440717269:android:143359b539adc00548375c",
+        "android_client_info": {
+          "package_name": "atenti.android"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "640440717269-0irp422iiphn0lk4fr0tk674l3q6oice.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "atenti.android",
+            "certificate_hash": "212ce7193f83b6331a97610c028c5a7278d5ff8f"
+          }
+        },
+        {
+          "client_id": "640440717269-7pelqbsv510t8kq8urvha5j36je0q2vg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "atenti.android",
+            "certificate_hash": "5a3a663268abc31b9833bcaa2279eb67b918b293"
+          }
+        },
+        {
+          "client_id": "640440717269-3pad5jtfmbo4se7ptj0jqn0310nrj2ds.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6BKP2GoGztzOeCHKF68l0_v74iin3rIs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "640440717269-3pad5jtfmbo4se7ptj0jqn0310nrj2ds.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

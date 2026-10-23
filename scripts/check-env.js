@@ -3,7 +3,40 @@
  *
  * Uso: node scripts/check-env.js
  * Sale con código 1 si falta alguna variable obligatoria, 0 si están todas.
+ *
+ * Nota: `node` no carga .env automáticamente (eso lo hace Expo). Por eso este
+ * script lee .env / .env.local del root del proyecto antes de verificar. Las
+ * variables ya presentes en el entorno (por ejemplo en CI) tienen prioridad.
  */
+const fs = require('fs');
+const path = require('path');
+
+function cargarEnv(nombreArchivo) {
+  const ruta = path.join(__dirname, '..', nombreArchivo);
+  if (!fs.existsSync(ruta)) return;
+  const contenido = fs.readFileSync(ruta, 'utf8');
+  for (const linea of contenido.split(/\r?\n/)) {
+    const limpia = linea.trim();
+    if (!limpia || limpia.startsWith('#')) continue;
+    const idx = limpia.indexOf('=');
+    if (idx === -1) continue;
+    const clave = limpia.slice(0, idx).trim();
+    let valor = limpia.slice(idx + 1).trim();
+    if (
+      (valor.startsWith('"') && valor.endsWith('"')) ||
+      (valor.startsWith("'") && valor.endsWith("'"))
+    ) {
+      valor = valor.slice(1, -1);
+    }
+    if (process.env[clave] === undefined) {
+      process.env[clave] = valor;
+    }
+  }
+}
+
+cargarEnv('.env');
+cargarEnv('.env.local');
+
 const REQUIRED = [
   'EXPO_PUBLIC_FIREBASE_API_KEY',
   'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
@@ -15,11 +48,15 @@ const REQUIRED = [
 ];
 
 const OPTIONAL = [
+  'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
   'EXPO_PUBLIC_CLOUD_FUNCTIONS_BASE_URL',
+  'EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION',
   'EXPO_PUBLIC_RENAPER_ENABLED',
   'EXPO_PUBLIC_RENAPER_ENDPOINT',
   'EXPO_PUBLIC_RENAPER_API_KEY',
   'EXPO_PUBLIC_RATE_LIMIT_DAILY',
+  'EXPO_PUBLIC_ADMIN_EMAILS',
+  'EXPO_PUBLIC_SENTRY_DSN',
 ];
 
 console.log('=====================================================');

@@ -10,18 +10,20 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.atenti.app",
       "config": {
-        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        "googleMapsApiKey": "AIzaSyA-t6THjJGoF4rGvwHuMLzUn7bLCmM8RRI"
       },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Atenti necesita tu ubicación para reportar y visualizar alertas de fraudes cercanos.",
-        "NSPhotoLibraryUsageDescription": "Permite adjuntar capturas y comprobantes como evidencia del reporte."
+        "NSPhotoLibraryUsageDescription": "Permite adjuntar capturas y comprobantes como evidencia del reporte.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.atenti.app",
+      "package": "atenti.android",
+      "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+          "apiKey": "AIzaSyA-t6THjJGoF4rGvwHuMLzUn7bLCmM8RRI"
         }
       },
       "adaptiveIcon": {
@@ -42,7 +44,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "9df2fa5e-9519-4896-be9c-68243f75f71b"
       }
     },
     "plugins": [
@@ -57,6 +59,7 @@
       ],
       "@react-native-google-signin/google-signin",
       "expo-sharing"
-    ]
+    ],
+    "owner": "atenti"
   }
 }
