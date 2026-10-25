@@ -62,7 +62,9 @@
         {
           "androidGoogleMapsApiKey": "AIzaSy_ATENTI_ANDROID_MAPS_KEY"
         }
-      ]
+      ],
+      "expo-status-bar",
+      "expo-web-browser"
     ]
   }
 }
