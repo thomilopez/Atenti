@@ -11,10 +11,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { IdentifierType, IncidentCategory, IncidentReport, RootStackParamList } from '../types';
+import { IdentifierType, IncidentCategory, IncidentReport, Relato, RootStackParamList } from '../types';
 import { buscarIncidentesPaginados } from '../services/firebase';
-import { CategoriaTipo } from '../services/normalize';
+import { CategoriaTipo, normalizeIdentifier } from '../services/normalize';
 import { listarCategoriasActivas } from '../services/categoryService';
+import { buscarRelatosPorIdentificador } from '../services/storyService';
 import { VeracityBar } from '../components/VeracityBar';
 import { BottomNavBar } from '../components/BottomNavBar';
 
@@ -33,6 +34,7 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
   );
   const [categoria, setCategoria] = useState<IncidentCategory | 'Todas'>('Todas');
   const [categorias, setCategorias] = useState<CategoriaTipo[]>([]);
+  const [relatosRelacionados, setRelatosRelacionados] = useState<Relato[]>([]);
   const [scoreMinimo, setScoreMinimo] = useState(0);
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
@@ -76,6 +78,16 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
       .then(setCategorias)
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (filterType !== 'Todas' && query.trim()) {
+      buscarRelatosPorIdentificador(normalizeIdentifier(filterType, query))
+        .then(setRelatosRelacionados)
+        .catch(() => setRelatosRelacionados([]));
+    } else {
+      setRelatosRelacionados([]);
+    }
+  }, [filterType, query]);
 
   const cargarMas = () => {
     if (!loading && hayMas) cargar(pagina + 1);
@@ -189,7 +201,24 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
           </TouchableOpacity>
         )}
         ListFooterComponent={
-          loading ? <ActivityIndicator style={styles.loading} color="#0F172A" /> : null
+          <>
+            {loading ? <ActivityIndicator style={styles.loading} color="#0F172A" /> : null}
+            {relatosRelacionados.length > 0 && (
+              <View style={styles.relatosSection}>
+                <Text style={styles.relatosTitle}>Relatos relacionados</Text>
+                {relatosRelacionados.map((r) => (
+                  <TouchableOpacity
+                    key={r.id}
+                    style={styles.relatoCard}
+                    onPress={() => navigation.navigate('P28_StoryDetail', { relato: r })}
+                  >
+                    <Text style={styles.relatoTitulo} numberOfLines={1}>{r.titulo}</Text>
+                    <Text style={styles.relatoCat}>{r.categoria}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </>
         }
         ListEmptyComponent={
           !loading ? (
@@ -346,6 +375,30 @@ const styles = StyleSheet.create({
   loading: {
     paddingVertical: 16,
   },
+  relatosSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 12,
+  },
+  relatosTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  relatoCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  relatoTitulo: { fontSize: 13, fontWeight: '800', color: '#0F172A' },
+  relatoCat: { fontSize: 11, color: '#64748B', marginTop: 2 },
   empty: {
     alignItems: 'center',
     justifyContent: 'center',

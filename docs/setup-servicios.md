@@ -661,3 +661,26 @@ npm run verify:all
 
 > La geocodificación usa el geocodificador nativo del dispositivo (no requiere
 > otra API key). En web puede no estar disponible: se usa la dirección manual.
+
+---
+
+## 24. Relatos de estafas
+
+1. Colección `relatos` con estados **EN_REVISION → PUBLICADA / OCULTA**.
+2. La tab **Historias** abre el feed; el usuario crea relatos desde P29 (título,
+   categoría, víctima/testigo, cómo funciona, señales de alerta, identificadores,
+   enlaces y fuente). Al enviar queda en revisión y se avisa que puede tardar
+   hasta 24hs.
+3. **Moderación previa:** Panel admin → **Moderar relatos** → aprobar u ocultar
+   (con nota). Al aprobar se notifica al autor y a los seguidores de la categoría.
+4. Los relatos se **vinculan a identificadores** normalizados y aparecen como
+   "Relatos relacionados" en los resultados de búsqueda.
+5. **Suscripciones** por categoría y preferencia **Relatos** en
+   Ajustes → Preferencias de notificaciones.
+6. Compartir por WhatsApp y reportar abuso desde el detalle.
+
+Desplegar reglas, índices y funciones:
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes,functions
+```

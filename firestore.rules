@@ -124,6 +124,24 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Relatos de estafas, suscripciones y reportes de contenido.
+    match /relatos/{id} {
+      allow read: if isAdmin()
+        || resource.data.estado == 'PUBLICADA'
+        || (isSignedIn() && resource.data.autorUid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.estado == 'EN_REVISION';
+      allow update: if isSignedIn();
+      allow delete: if false;
+    }
+    match /story_subscriptions/{id} {
+      allow read, write: if isSignedIn();
+    }
+    match /story_reports/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
     // NOTA PARA PRODUCCION:
     // 1. Restringir las escrituras de denuncias_by_clave, objetivos,
     //    ubicaciones, evidencias, historialEstado, audit_logs y

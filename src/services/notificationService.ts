@@ -12,7 +12,9 @@ export type TipoNotificacion =
   | 'DISPUTA_RESUELTA'
   | 'ESCALADA'
   | 'CORROBORACION'
-  | 'CAMBIO_ESTADO';
+  | 'CAMBIO_ESTADO'
+  | 'RELATO_PUBLICADO'
+  | 'RELATO_OCULTO';
 
 export interface Notificacion {
   id: string;

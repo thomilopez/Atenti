@@ -225,11 +225,11 @@ export const escalarImpugnaciones = onSchedule('every 15 minutes', async () => {
 // Push notifications (RF-077 a RF-080)
 // ---------------------------------------------------------------------------
 
-const PREF_DEFAULT = { estado: true, corroboracion: true, resolucion: true };
+const PREF_DEFAULT = { estado: true, corroboracion: true, resolucion: true, relatos: true };
 
 function preferenciaParaTipo(
   tipo: string,
-  prefs: { estado?: boolean; corroboracion?: boolean; resolucion?: boolean }
+  prefs: { estado?: boolean; corroboracion?: boolean; resolucion?: boolean; relatos?: boolean }
 ): boolean {
   switch (tipo) {
     case 'CORROBORACION':
@@ -239,6 +239,9 @@ function preferenciaParaTipo(
     case 'IMPUGNACION':
     case 'CAMBIO_ESTADO':
       return prefs.estado !== false;
+    case 'RELATO_PUBLICADO':
+    case 'RELATO_OCULTO':
+      return prefs.relatos !== false;
     default:
       return true;
   }

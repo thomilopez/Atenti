@@ -77,6 +77,12 @@ export const P26_NotificationPreferencesScreen: React.FC<Props> = ({ navigation 
             valor={prefs.resolucion}
             onValueChange={(v) => cambiar('resolucion', v)}
           />
+          <Fila
+            titulo="Relatos de estafas"
+            descripcion="Cuando se publica un relato de una categoría que seguís."
+            valor={prefs.relatos}
+            onValueChange={(v) => cambiar('relatos', v)}
+          />
 
           <Text style={styles.note}>
             Las notificaciones in-app siempre se guardan. El push requiere un

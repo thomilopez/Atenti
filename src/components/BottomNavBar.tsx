@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 
 interface BottomNavBarProps {
-  activeTab?: 'home' | 'map' | 'report' | 'profile';
+  activeTab?: 'home' | 'map' | 'report' | 'stories' | 'profile';
 }
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }) => {
@@ -50,6 +50,19 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
           name={activeTab === 'report' ? 'add-circle' : 'add-circle-outline'}
           size={24}
           color={activeTab === 'report' ? '#000000' : '#94A3B8'}
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.tabItem}
+        onPress={() => navigation.navigate('P27_StoriesFeed')}
+        accessibilityRole="button"
+        accessibilityLabel="Historias de estafas"
+      >
+        <Ionicons
+          name={activeTab === 'stories' ? 'newspaper' : 'newspaper-outline'}
+          size={22}
+          color={activeTab === 'stories' ? '#000000' : '#94A3B8'}
         />
       </TouchableOpacity>
 

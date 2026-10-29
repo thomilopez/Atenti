@@ -123,6 +123,14 @@ export const P14_AdminDashboardScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.actionText}>Log de auditoría</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.auditBtn}
+              onPress={() => navigation.navigate('P32_StoryModeration')}
+            >
+              <Ionicons name="newspaper-outline" size={16} color="#0F172A" />
+              <Text style={styles.actionText}>Moderar relatos</Text>
+            </TouchableOpacity>
+
             <Text style={styles.sectionTitle}>Denuncias en disputa</Text>
             {disputas.length === 0 ? (
               <View style={styles.empty}>

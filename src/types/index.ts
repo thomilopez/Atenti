@@ -113,6 +113,36 @@ export interface ReportDraft {
   credibilityScore: number;
 }
 
+export type EstadoRelato = 'EN_REVISION' | 'PUBLICADA' | 'OCULTA';
+
+export interface IdentificadorRelato {
+  tipo: IdentifierType;
+  valor: string;
+  valorNormalizado: string;
+}
+
+export interface Relato {
+  id: string;
+  titulo: string;
+  categoria: string;
+  modusOperandi: string;
+  senalesDeAlerta: string[];
+  identificadores: IdentificadorRelato[];
+  links: string[];
+  fueVictima: boolean;
+  fuente: string;
+  ubicacion?: LocationData;
+  autorUid: string;
+  creadoEn: string;
+  estado: EstadoRelato;
+  moderadoPor?: string;
+  notaModeracion?: string;
+  corroboraciones: number;
+  tags: string[];
+  /** Denormalizado para búsqueda por identificador. */
+  identificadoresNormalizados?: string[];
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -157,4 +187,10 @@ export type RootStackParamList = {
   P25_AuditLog: undefined;
   P26_NotificationPreferences: undefined;
   P31_FullMap: undefined;
+  P27_StoriesFeed: undefined;
+  P28_StoryDetail: { relato: Relato };
+  P29_CreateStory: { draftId?: string } | undefined;
+  P30_MyStories: undefined;
+  P32_StoryModeration: undefined;
+  P33_CommunityGuidelines: undefined;
 };

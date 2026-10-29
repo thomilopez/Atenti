@@ -30,6 +30,12 @@ import { P24_RightToBeForgottenScreen } from '../screens/P24_RightToBeForgottenS
 import { P25_AuditLogScreen } from '../screens/P25_AuditLogScreen';
 import { P26_NotificationPreferencesScreen } from '../screens/P26_NotificationPreferencesScreen';
 import { P31_FullMapScreen } from '../screens/P31_FullMapScreen';
+import { P27_StoriesFeedScreen } from '../screens/P27_StoriesFeedScreen';
+import { P28_StoryDetailScreen } from '../screens/P28_StoryDetailScreen';
+import { P29_CreateStoryScreen } from '../screens/P29_CreateStoryScreen';
+import { P30_MyStoriesScreen } from '../screens/P30_MyStoriesScreen';
+import { P32_StoryModerationScreen } from '../screens/P32_StoryModerationScreen';
+import { P33_CommunityGuidelinesScreen } from '../screens/P33_CommunityGuidelinesScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -118,6 +124,14 @@ export const AppNavigator: React.FC = () => {
 
         {/* Mapa completo */}
         <Stack.Screen name="P31_FullMap" component={P31_FullMapScreen} />
+
+        {/* Relatos de estafas */}
+        <Stack.Screen name="P27_StoriesFeed" component={P27_StoriesFeedScreen} />
+        <Stack.Screen name="P28_StoryDetail" component={P28_StoryDetailScreen} />
+        <Stack.Screen name="P29_CreateStory" component={P29_CreateStoryScreen} />
+        <Stack.Screen name="P30_MyStories" component={P30_MyStoriesScreen} />
+        <Stack.Screen name="P32_StoryModeration" component={P32_StoryModerationScreen} />
+        <Stack.Screen name="P33_CommunityGuidelines" component={P33_CommunityGuidelinesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

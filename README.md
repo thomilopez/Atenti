@@ -69,6 +69,12 @@ npm run web
 | **P24** | `P24_RightToBeForgottenScreen` | **Derecho al olvido:** solicitud formal. |
 | **P25** | `P25_AuditLogScreen` | **Log de Auditoría:** eventos globales (admin). |
 | **P26** | `P26_NotificationPreferencesScreen` | **Preferencias:** por tipo de notificación. |
+| **P27** | `P27_StoriesFeedScreen` | **Historias de estafas:** feed con búsqueda, filtros, disclaimer y acceso a normas. |
+| **P28** | `P28_StoryDetailScreen` | **Detalle de relato:** señales de alerta, identificadores, "me pasó / lo vi", compartir WhatsApp y reportar abuso. |
+| **P29** | `P29_CreateStoryScreen` | **Contar una estafa:** título, categoría, víctima/testigo, cómo funciona, señales, identificadores, enlaces y fuente. |
+| **P30** | `P30_MyStoriesScreen` | **Mis relatos:** enviados (con estado) y borradores. |
+| **P32** | `P32_StoryModerationScreen` | **Moderar relatos (admin):** cola EN_REVISION, aprobar/ocultar. |
+| **P33** | `P33_CommunityGuidelinesScreen` | **Normas de la comunidad:** reglas y disclaimer legal. |
 | **P31** | `P31_FullMapScreen` | **Mapa completo:** mapa a pantalla completa con calor, radio y "Mi ubicación". |
 
 > La antigua **P6 (Error de Validación)** se unificó en `P4_CreateReportScreen`

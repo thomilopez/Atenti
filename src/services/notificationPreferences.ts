@@ -12,12 +12,14 @@ export interface PreferenciasNotificacion {
   estado: boolean;
   corroboracion: boolean;
   resolucion: boolean;
+  relatos: boolean;
 }
 
 export const PREFERENCIAS_DEFAULT: PreferenciasNotificacion = {
   estado: true,
   corroboracion: true,
   resolucion: true,
+  relatos: true,
 };
 
 function claveLocal(uid: string): string {
@@ -87,6 +89,9 @@ export function preferenciaParaTipo(
     case 'IMPUGNACION':
     case 'CAMBIO_ESTADO':
       return preferencias.estado;
+    case 'RELATO_PUBLICADO':
+    case 'RELATO_OCULTO':
+      return preferencias.relatos;
     default:
       return true;
   }
