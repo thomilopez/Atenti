@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 
+import { P0_WelcomeScreen } from '../screens/P0_WelcomeScreen';
 import { P1_HomeScreen } from '../screens/P1_HomeScreen';
 import { P2_ReportDetailScreen } from '../screens/P2_ReportDetailScreen';
 import { P3_LegalAuthScreen } from '../screens/P3_LegalAuthScreen';
@@ -28,6 +29,7 @@ import { P23_LegalScreen } from '../screens/P23_LegalScreen';
 import { P24_RightToBeForgottenScreen } from '../screens/P24_RightToBeForgottenScreen';
 import { P25_AuditLogScreen } from '../screens/P25_AuditLogScreen';
 import { P26_NotificationPreferencesScreen } from '../screens/P26_NotificationPreferencesScreen';
+import { P31_FullMapScreen } from '../screens/P31_FullMapScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -35,12 +37,15 @@ export const AppNavigator: React.FC = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="P1_Home"
+        initialRouteName="P0_Welcome"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
         }}
       >
+        {/* P0 - Bienvenida (logo + eslogan) */}
+        <Stack.Screen name="P0_Welcome" component={P0_WelcomeScreen} />
+
         {/* P1 - Buscador Anónimo (Home / HomeScreen) */}
         <Stack.Screen name="P1_Home" component={P1_HomeScreen} />
 
@@ -110,6 +115,9 @@ export const AppNavigator: React.FC = () => {
         <Stack.Screen name="P24_RightToBeForgotten" component={P24_RightToBeForgottenScreen} />
         <Stack.Screen name="P25_AuditLog" component={P25_AuditLogScreen} />
         <Stack.Screen name="P26_NotificationPreferences" component={P26_NotificationPreferencesScreen} />
+
+        {/* Mapa completo */}
+        <Stack.Screen name="P31_FullMap" component={P31_FullMapScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

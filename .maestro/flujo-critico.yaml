@@ -1,12 +1,11 @@
 appId: atenti.android
 ---
 - launchApp
-- assertVisible: "Buscar por Alias, CBU, Teléfono o Local..."
-- tapOn: "Buscar por Alias, CBU, Teléfono o Local..."
+- assertVisible: "Atenti"
+- assertVisible: "Buscar antecedentes"
+- tapOn: "Buscar antecedentes"
+- assertVisible: "¿A quién querés chequear?"
+- tapOn: "Ej: ju.mp, 0000003100084729103829..."
 - inputText: "ju.mp"
-- assertVisible: "Alias: ju.mp"
-- tapOn: "Alias: ju.mp"
-- assertVisible: "Detalle de Incidencia"
-- back
-- tapOn:
-    id: ".*fab.*"
+- tapOn: "Buscar"
+- assertVisible: "Resultados"

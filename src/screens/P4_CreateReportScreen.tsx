@@ -19,6 +19,7 @@ import { validarCbu, validarTelefonoE164, CATEGORIAS, CategoriaTipo } from '../s
 import { listarCategoriasActivas } from '../services/categoryService';
 import { obtenerUbicacionActual, ubicacionConDireccion } from '../services/locationService';
 import { filtrarTexto, contieneLenguajeOfensivo } from '../services/lexiconFilter';
+import { useResponsive } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
 
@@ -44,6 +45,7 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
 
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [identifierDropdownOpen, setIdentifierDropdownOpen] = useState(false);
+  const { mapPickerHeight } = useResponsive();
   const [categorias, setCategorias] = useState<CategoriaTipo[]>(CATEGORIAS.map((c) => ({ ...c })));
   const [filtroAplicado, setFiltroAplicado] = useState(false);
 
@@ -277,7 +279,7 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
         {/* Un rectángulo mediano (Mapa para fijar pin) */}
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>Mapa para fijar pin</Text>
-          <View style={styles.mapRectangle}>
+          <View style={[styles.mapRectangle, { height: mapPickerHeight }]}>
             <MapViewWrapper
               selectedLocation={location}
               draggablePin

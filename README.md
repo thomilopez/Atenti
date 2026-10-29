@@ -43,19 +43,33 @@ npm run web
 
 | Pantalla | Componente | Descripción |
 |---|---|---|
-| **P1** | `P1_HomeScreen` | **Buscador Anónimo:** Barra de búsqueda unificada, chips `[Alias] [CBU] [Tel] [Local]`, mapa interactivo ocupando el 70% de la pantalla con pines por veracidad, botón flotante (FAB) circular oscuro con `+` (conduce a P3 o P4 según login). Acceso U0 libre. |
-| **P2** | `P2_ReportDetailScreen` | **Detalle de Incidencia:** Título (ej. "Alias: ju.mp"), indicador semáforo visual, barra de veracidad al 80%, mapa de ubicación, 2 recuadros de fotos con evidencias enmascaradas y botón "Denunciar mismo objetivo". |
-| **P3** | `P3_LegalAuthScreen` | **Gate Login & DDJJ:** Ícono de candado/usuario, *"Para denunciar necesitás identificarte"*, botón *"Continuar con Google"* y checkbox obligatorio de Declaración Jurada y Términos. |
-| **P4** | `P4_CreateReportScreen` | **Formulario Paso 1:** Selectores desplegables (Categoría, Tipo de Identificador), valor, relato, mapa para fijar el pin y panel inferior fijo con *"Credibilidad: 20%"* y botón secundario *"Siguiente"*. Incluye el error de validación de CBU (ex P6, ahora unificado). |
-| **P5** | `P5_OCRValidationScreen` | **Evidencias Paso 2:** Botones grandes delineados con `+` ("Subir captura", "Subir comprobante"), aviso *"Validando OCR..."*, panel inferior dinámico con *"Credibilidad: 80%"* y botón principal oscuro *"Enviar Reporte"*. |
-| **P7** | `P7_OfflineModal` | **Falla Técnica / Offline:** Pantalla P5 oscurecida con modal flotante: *"No hay conexión. Se guardó un borrador"*, botones *"Reintentar"* y *"Ver Mis Borradores"* integrados con `AsyncStorage`. |
-| **P8** | `P8_ConfirmationScreen` | **Confirmación de Envío:** Círculo grande con check de éxito, textos informativos *"Código: AT-2026-XXXXXX"* y *"Credibilidad final: 80%"*, botones *"Seguir estado"* y *"Volver al inicio"*. |
-| **P9** | `P9_CredibilityPanelScreen` | **Panel "Mi Credibilidad":** Checklist interactivo de 3 ítems (Cuenta Google verificada, Teléfono verificado +15% con SMS OTP, DNI verificado +10% con documento OCR) y gráfico explicativo de la fórmula matemática RG-07. |
-| **P10** | `P10_MisDenunciasScreen` | **Mis Denuncias:** Listado con filtros por estado (Todas, Publicadas, En Disputa, Resueltas) y acceso a la edición. |
-| **P11** | `P11_TrackingCodeScreen` | **Consulta Pública:** Consulta del estado por código `AT-2026-XXXXXX` sin iniciar sesión. |
-| **P12** | `P12_EditReportScreen` | **Editar Denuncia:** Corrección de datos dentro de las 24hs, con cuenta regresiva y eliminación lógica justificada. |
-| **P13** | `P13_SearchResultsScreen` | **Resultados:** Búsqueda con filtros avanzados (tipo, categoría, score mínimo, fechas) y scroll infinito. |
-| **P20** | `P20_SettingsScreen` | **Ajustes:** Cierre de sesión, factores de identidad y solicitud de baja de datos (Ley 25.326). |
+| **P0** | `P0_WelcomeScreen` | **Bienvenida:** Logo + eslogan, animación de entrada y accesos a Buscar, Reportar e Ingresar. Es la pantalla inicial de la app. |
+| **P1** | `P1_HomeScreen` | **Inicio search-first:** buscador protagonico, chips `[Alias] [CBU] [Tel] [Local]`, búsquedas recientes, tendencias, skeleton y preview compacto del mapa con "Ver mapa completo". FAB para reportar. |
+| **P2** | `P2_ReportDetailScreen` | **Detalle de Incidencia:** título, semáforo, barra de veracidad, desglose, mapa, evidencias enmascaradas, historial de score y botones para impugnar o denunciar el mismo objetivo. |
+| **P3** | `P3_LegalAuthScreen` | **Gate Login & DDJJ:** "Continuar con Google" y checkbox obligatorio de Declaración Jurada. |
+| **P4** | `P4_CreateReportScreen` | **Formulario Paso 1:** categoría, tipo de identificador, valor, relato (mín. 20), mapa para fijar pin y credibilidad real. Incluye validación de CBU (ex P6). |
+| **P5** | `P5_OCRValidationScreen` | **Evidencias Paso 2:** captura, comprobante o PDF; OCR; límites 5 archivos/10MB y envío del reporte. |
+| **P7** | `P7_OfflineModal` | **Offline:** aviso de borrador guardado, reintento y acceso a borradores. |
+| **P8** | `P8_ConfirmationScreen` | **Confirmación:** código de seguimiento y credibilidad final. |
+| **P9** | `P9_CredibilityPanelScreen` | **Mi Credibilidad:** factores de identidad, desglose y fórmula RG-07. |
+| **P10** | `P10_MisDenunciasScreen` | **Mis Denuncias:** filtros por estado y acceso a edición o estado de disputa. |
+| **P11** | `P11_TrackingCodeScreen` | **Consulta Pública:** estado por código `AT-2026-XXXXXX`. |
+| **P12** | `P12_EditReportScreen` | **Editar Denuncia:** ventana de 24hs y borrado lógico justificado. |
+| **P13** | `P13_SearchResultsScreen` | **Resultados:** filtros avanzados y scroll infinito. |
+| **P14** | `P14_AdminDashboardScreen` | **Panel Admin:** KPIs, disputas, métricas y accesos a gestión. |
+| **P15** | `P15_AdminDisputeScreen` | **Resolver Disputa:** mantener publicada o retirar. |
+| **P16** | `P16_AdminCategoriesScreen` | **Categorías:** alta/edición/activación. |
+| **P17** | `P17_AdminUsersScreen` | **Usuarios:** suspender cuentas. |
+| **P18** | `P18_AdminAuditScreen` | **Auditoría:** uid, email, IP, hash de DDJJ, evidencias e historial. |
+| **P19** | `P19_NotificationCenterScreen` | **Notificaciones:** historial, lectura y preferencias. |
+| **P20** | `P20_SettingsScreen` | **Ajustes:** cuenta, privacidad, legal, telemetría y baja de datos. |
+| **P21** | `P21_ImpugnacionScreen` | **Impugnar:** CUIT/DNI + descargo y take-down. |
+| **P22** | `P22_DisputeStatusScreen` | **Estado de Disputa:** countdown 72hs y respuesta. |
+| **P23** | `P23_LegalScreen` | **Legal:** términos versionados, privacidad y retención. |
+| **P24** | `P24_RightToBeForgottenScreen` | **Derecho al olvido:** solicitud formal. |
+| **P25** | `P25_AuditLogScreen` | **Log de Auditoría:** eventos globales (admin). |
+| **P26** | `P26_NotificationPreferencesScreen` | **Preferencias:** por tipo de notificación. |
+| **P31** | `P31_FullMapScreen` | **Mapa completo:** mapa a pantalla completa con calor, radio y "Mi ubicación". |
 
 > La antigua **P6 (Error de Validación)** se unificó en `P4_CreateReportScreen`
 > mediante el parámetro `validationError`, eliminando la pantalla duplicada.

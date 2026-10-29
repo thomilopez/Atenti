@@ -23,6 +23,7 @@ import { BottomNavBar } from '../components/BottomNavBar';
 import { toPublicProjection } from '../services/masking';
 import { obtenerHistorialScore, EventoScore } from '../services/scoreHistory';
 import { ScoreBreakdown } from '../components/ScoreBreakdown';
+import { useResponsive } from '../hooks/useResponsive';
 import {
   exportarFichaPDF,
   exportarCSV,
@@ -36,6 +37,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
   const { incident } = route.params;
   const { isAuthenticated } = useAuth();
   const { setIdentifierType, setIdentifierValue, setCategory } = useReportFlow();
+  const { mapPickerHeight } = useResponsive();
 
   const proyeccion = useMemo(() => toPublicProjection(incident), [incident]);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -175,7 +177,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
         {/* Cuerpo: Un recuadro para el mapa */}
         <View style={styles.mapSection}>
           <Text style={styles.sectionLabel}>Ubicación Georreferenciada</Text>
-          <View style={styles.mapRecuadro}>
+          <View style={[styles.mapRecuadro, { height: mapPickerHeight }]}>
             <MapViewWrapper
               selectedLocation={incident.location}
               centerLatitude={incident.location.latitude}

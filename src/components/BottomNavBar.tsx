@@ -29,7 +29,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
 
       <TouchableOpacity
         style={styles.tabItem}
-        onPress={() => navigation.navigate('P1_Home')}
+        onPress={() => navigation.navigate('P31_FullMap')}
         accessibilityRole="button"
         accessibilityLabel="Mapa de denuncias"
       >

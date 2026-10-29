@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,13 +14,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentReport, RootStackParamList } from '../types';
 import { getIncidents } from '../services/firebase';
-import { obtenerUbicacionActual } from '../services/locationService';
 import { sugerirIdentificadores, sugerirCorreccion } from '../services/autocompleteService';
+import {
+  RecentSearch,
+  agregarReciente,
+  limpiarRecientes,
+  listarRecientes,
+} from '../services/recentSearches';
+import { calcularTendencias } from '../services/trends';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useAuth } from '../context/AuthContext';
 import { DraftsListModal } from '../components/DraftsListModal';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { Skeleton } from '../components/Skeleton';
+import { HelpModal } from '../components/HelpModal';
+import { useResponsive } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P1_Home'>;
 
@@ -34,25 +43,31 @@ const FILTER_CHIPS: { label: string; type: IdentifierType }[] = [
 export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
   const { isAuthenticated } = useAuth();
   const { loadFromDraft } = useReportFlow();
+  const { gutter, previewMapHeight, contentMaxWidth } = useResponsive();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChip, setSelectedChip] = useState<IdentifierType | null>(null);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [todosIncidentes, setTodosIncidentes] = useState<IncidentReport[]>([]);
+  const [recientes, setRecientes] = useState<RecentSearch[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showDraftsModal, setShowDraftsModal] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(false);
-  const [radioKm, setRadioKm] = useState<number | undefined>(undefined);
-  const [centro, setCentro] = useState({ latitude: -34.6037, longitude: -58.3816 });
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
-    getIncidents().then(setTodosIncidentes).catch(() => {});
+    Promise.all([getIncidents(), listarRecientes()])
+      .then(([data, recents]) => {
+        setTodosIncidentes(data);
+        setRecientes(recents);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    const fetchIncidents = async () => {
-      const data = await getIncidents(selectedChip || undefined, searchQuery);
-      setIncidents(data);
-    };
-    fetchIncidents();
+    getIncidents(selectedChip || undefined, searchQuery)
+      .then(setIncidents)
+      .catch(() => {});
   }, [selectedChip, searchQuery]);
 
   const sugerencias = sugerirIdentificadores(searchQuery, todosIncidentes);
@@ -60,6 +75,46 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
     searchQuery.trim().length >= 3 && incidents.length === 0
       ? sugerirCorreccion(searchQuery, todosIncidentes)
       : null;
+  const tendencias = calcularTendencias(todosIncidentes);
+
+  const abrirBusqueda = useCallback(
+    async (value: string, type: IdentifierType) => {
+      const limpio = value.trim();
+      if (limpio) {
+        const actualizados = await agregarReciente({ value: limpio, type });
+        setRecientes(actualizados);
+      }
+      navigation.navigate('P13_SearchResults', {
+        initialQuery: limpio,
+        initialType: type,
+      });
+    },
+    [navigation]
+  );
+
+  const handleBuscar = () => {
+    const type = selectedChip ?? undefined;
+    if (!searchQuery.trim() && !type) {
+      Alert.alert(
+        'Buscá un identificador',
+        'Ingresá un Alias, CBU, CUIT, teléfono o local para empezar.'
+      );
+      return;
+    }
+    if (searchQuery.trim() && type) {
+      abrirBusqueda(searchQuery, type);
+    } else {
+      navigation.navigate('P13_SearchResults', {
+        initialQuery: searchQuery,
+        initialType: type,
+      });
+    }
+  };
+
+  const handleLimpiarRecientes = async () => {
+    await limpiarRecientes();
+    setRecientes([]);
+  };
 
   const handleFabPress = () => {
     if (!isAuthenticated) {
@@ -69,49 +124,90 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const handleMarkerPress = (incident: IncidentReport) => {
-    navigation.navigate('P2_ReportDetail', { incident });
-  };
-
-  const handleMiUbicacion = async () => {
-    const coords = await obtenerUbicacionActual();
-    if (!coords) {
-      Alert.alert(
-        'Ubicación no disponible',
-        'No pudimos obtener tu ubicación. Revisá los permisos del dispositivo.'
-      );
-      return;
-    }
-    setCentro(coords);
-  };
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Cabecera: Barra de búsqueda unificada (rectángulo largo con ícono de lupa) */}
-      <View style={styles.header}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#64748B" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar por Alias, CBU, Teléfono o Local..."
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="none"
-            onSubmitEditing={() =>
-              navigation.navigate('P13_SearchResults', {
-                initialQuery: searchQuery,
-                initialType: selectedChip ?? undefined,
-              })
-            }
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          )}
+      <View style={[styles.header, { paddingHorizontal: gutter }]}>
+        <View style={styles.brandRow}>
+          <View style={styles.brandMini}>
+            <Ionicons name="shield-checkmark" size={18} color="#FFFFFF" />
+          </View>
+          <Text style={styles.brandName}>Atenti</Text>
+          <View style={styles.brandSpacer} />
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => navigation.navigate('P19_NotificationCenter')}
+            accessibilityRole="button"
+            accessibilityLabel="Notificaciones"
+          >
+            <Ionicons name="notifications-outline" size={20} color="#0F172A" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => setShowDraftsModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Borradores"
+          >
+            <Ionicons name="folder-outline" size={20} color="#0F172A" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingHorizontal: gutter, maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Buscador protagonico */}
+        <View style={styles.searchHero}>
+          <Text style={styles.heroTitle}>¿A quién querés chequear?</Text>
+          <Text style={styles.heroSubtitle}>
+            Alias, CBU, CUIT, teléfono o local
+          </Text>
+
+          <View style={styles.searchRow}>
+            <Ionicons name="search" size={20} color="#64748B" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Ej: ju.mp, 0000003100084729103829..."
+              placeholderTextColor="#94A3B8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              returnKeyType="search"
+              onSubmitEditing={handleBuscar}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={styles.chipsRow}>
+            {FILTER_CHIPS.map((chip) => {
+              const isActive = selectedChip === chip.type;
+              return (
+                <TouchableOpacity
+                  key={chip.type}
+                  style={[styles.chip, isActive && styles.chipActive]}
+                  onPress={() => setSelectedChip(isActive ? null : chip.type)}
+                >
+                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                    {chip.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity style={styles.searchBtn} onPress={handleBuscar} activeOpacity={0.9}>
+            <Text style={styles.searchBtnText}>Buscar</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
 
         {sugerencias.length > 0 && (
@@ -120,10 +216,7 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
               <TouchableOpacity
                 key={`${s.type}:${s.value}`}
                 style={styles.suggestionItem}
-                onPress={() => {
-                  setSearchQuery(s.value);
-                  setSelectedChip(s.type);
-                }}
+                onPress={() => abrirBusqueda(s.value, s.type)}
               >
                 <Ionicons name="search-outline" size={14} color="#64748B" />
                 <Text style={styles.suggestionText} numberOfLines={1}>
@@ -137,10 +230,7 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
         {correccion && (
           <TouchableOpacity
             style={styles.correctionRow}
-            onPress={() => {
-              setSearchQuery(correccion.value);
-              setSelectedChip(correccion.type);
-            }}
+            onPress={() => abrirBusqueda(correccion.value, correccion.type)}
           >
             <Text style={styles.correctionText}>
               Quiso decir:{' '}
@@ -151,109 +241,99 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
           </TouchableOpacity>
         )}
 
-        {/* Filtros: 4 rectángulos pequeños redondeados (Chips) debajo del buscador */}
-        <View style={styles.chipsContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipsRow}
-          >
-            {FILTER_CHIPS.map((chip) => {
-              const isActive = selectedChip === chip.type;
-              return (
+        {recientes.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recientes</Text>
+              <TouchableOpacity onPress={handleLimpiarRecientes}>
+                <Text style={styles.sectionAction}>Limpiar</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              {recientes.map((r) => (
                 <TouchableOpacity
-                  key={chip.type}
-                  style={[styles.chip, isActive && styles.chipActive]}
-                  onPress={() => setSelectedChip(isActive ? null : chip.type)}
+                  key={`${r.type}:${r.value}`}
+                  style={styles.recentChip}
+                  onPress={() => abrirBusqueda(r.value, r.type)}
                 >
-                  <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
-                    [{chip.label}]
+                  <Ionicons name="time-outline" size={12} color="#475569" />
+                  <Text style={styles.recentChipText} numberOfLines={1}>
+                    [{r.type}] {r.value}
                   </Text>
                 </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
-          <TouchableOpacity
-            style={styles.draftsShortcut}
-            onPress={() => setShowDraftsModal(true)}
-          >
-            <Ionicons name="folder-outline" size={18} color="#0F172A" />
-          </TouchableOpacity>
+        {tendencias.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tendencias</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              {tendencias.map((t) => (
+                <TouchableOpacity
+                  key={`${t.type}:${t.value}`}
+                  style={styles.trendChip}
+                  onPress={() => abrirBusqueda(t.value, t.type)}
+                >
+                  <Ionicons name="trending-up" size={12} color="#B45309" />
+                  <Text style={styles.trendChipText} numberOfLines={1}>
+                    {t.value}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
-          <TouchableOpacity
-            style={styles.draftsShortcut}
-            onPress={() => navigation.navigate('P19_NotificationCenter')}
-            accessibilityRole="button"
-            accessibilityLabel="Notificaciones"
-          >
-            <Ionicons name="notifications-outline" size={18} color="#0F172A" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Cuerpo: Un rectángulo gris grande ocupando el 70% de la pantalla (representa el mapa) */}
-      <View style={styles.mapContainer}>
-        <MapViewWrapper
-          incidents={incidents}
-          onMarkerPress={handleMarkerPress}
-          centerLatitude={centro.latitude}
-          centerLongitude={centro.longitude}
-          showHeatmap={showHeatmap}
-          radioKm={radioKm}
-          radioCenter={centro}
-        />
-
-        {/* Controles de capas del mapa (RF-037, RF-039, RF-041) */}
-        <View style={styles.mapLayersPanel}>
-          <TouchableOpacity
-            style={[styles.layerChip, showHeatmap && styles.layerChipActive]}
-            onPress={() => setShowHeatmap((v) => !v)}
-          >
-            <Ionicons
-              name="flame-outline"
-              size={14}
-              color={showHeatmap ? '#FFFFFF' : '#0F172A'}
-            />
-            <Text style={[styles.layerChipText, showHeatmap && styles.layerChipTextActive]}>
-              Calor
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.layerChip} onPress={handleMiUbicacion}>
-            <Ionicons name="locate" size={14} color="#0F172A" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.radioPanel}>
-          {[1, 5, 10, 20].map((km) => (
+        {/* Preview del mapa */}
+        <View style={styles.mapCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Mapa de denuncias</Text>
             <TouchableOpacity
-              key={km}
-              style={[styles.radioChip, radioKm === km && styles.radioChipActive]}
-              onPress={() => setRadioKm(radioKm === km ? undefined : km)}
+              style={styles.mapLink}
+              onPress={() => navigation.navigate('P31_FullMap')}
             >
-              <Text style={[styles.radioChipText, radioKm === km && styles.radioChipTextActive]}>
-                {km}km
-              </Text>
+              <Text style={styles.mapLinkText}>Ver mapa completo</Text>
+              <Ionicons name="expand-outline" size={14} color="#0F172A" />
             </TouchableOpacity>
-          ))}
+          </View>
+
+          <View style={[styles.mapPreview, { height: previewMapHeight }]}>
+            {loading ? (
+              <View style={styles.skeletonStack}>
+                <Skeleton height={previewMapHeight - 16} radius={10} />
+              </View>
+            ) : (
+              <MapViewWrapper
+                incidents={incidents}
+                interactive={false}
+                onMarkerPress={(incident) =>
+                  navigation.navigate('P2_ReportDetail', { incident })
+                }
+              />
+            )}
+          </View>
         </View>
 
-        {/* Botón Flotante (FAB): Un círculo oscuro abajo a la derecha con un "+" */}
-        <TouchableOpacity
-          style={styles.fab}
-          activeOpacity={0.88}
-          onPress={handleFabPress}
-          accessibilityRole="button"
-          accessibilityLabel="Crear reporte"
-        >
-          <Ionicons name="add" size={32} color="#FFFFFF" />
+        <TouchableOpacity style={styles.helpBtn} onPress={() => setShowHelp(true)}>
+          <Ionicons name="help-circle-outline" size={16} color="#475569" />
+          <Text style={styles.helpBtnText}>¿Cómo funciona?</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
-      {/* Barra de navegación inferior */}
+      <TouchableOpacity
+        style={styles.fab}
+        activeOpacity={0.88}
+        onPress={handleFabPress}
+        accessibilityRole="button"
+        accessibilityLabel="Crear reporte"
+      >
+        <Ionicons name="add" size={30} color="#FFFFFF" />
+      </TouchableOpacity>
+
       <BottomNavBar activeTab="home" />
 
-      {/* Modal para ver borradores guardados en AsyncStorage */}
       <DraftsListModal
         visible={showDraftsModal}
         onClose={() => setShowDraftsModal(false)}
@@ -262,45 +342,95 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
           navigation.navigate('P4_CreateReport');
         }}
       />
+
+      <HelpModal visible={showHelp} onClose={() => setShowHelp(false)} />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 4,
     backgroundColor: '#FFFFFF',
   },
-  searchBar: {
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: 8, // Rectángulo largo
-    paddingHorizontal: 12,
-    height: 44,
+    paddingVertical: 6,
   },
-  searchIcon: {
+  brandMini: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 8,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
+  brandName: { fontSize: 18, fontWeight: '900', color: '#0F172A' },
+  brandSpacer: { flex: 1 },
+  iconBtn: {
+    padding: 6,
+    marginLeft: 6,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
+  scrollContent: { paddingTop: 8, paddingBottom: 24 },
+  searchHero: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+  },
+  heroTitle: { fontSize: 19, fontWeight: '900', color: '#0F172A' },
+  heroSubtitle: { fontSize: 12, color: '#64748B', marginTop: 2, marginBottom: 12 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 48,
+    gap: 8,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: '#0F172A' },
+  chipsRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  chipActive: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
+  chipText: { fontSize: 12, fontWeight: '700', color: '#475569' },
+  chipTextActive: { color: '#FFFFFF' },
+  searchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#000000',
+    borderRadius: 10,
+    paddingVertical: 13,
+    marginTop: 12,
+  },
+  searchBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   suggestionsBox: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 8,
-    marginTop: 6,
+    borderRadius: 10,
+    marginBottom: 8,
     overflow: 'hidden',
   },
   suggestionItem: {
@@ -312,132 +442,74 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F8FAFC',
   },
-  suggestionText: {
-    fontSize: 13,
-    color: '#0F172A',
-    fontWeight: '600',
-    flex: 1,
-  },
-  correctionRow: {
-    marginTop: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-  },
-  correctionText: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  correctionValue: {
-    color: '#0F172A',
-    fontWeight: '800',
-  },
-  chipsContainer: {
+  suggestionText: { fontSize: 13, color: '#0F172A', fontWeight: '600', flex: 1 },
+  correctionRow: { paddingVertical: 6, paddingHorizontal: 4, marginBottom: 4 },
+  correctionText: { fontSize: 12, color: '#64748B' },
+  correctionValue: { color: '#0F172A', fontWeight: '800' },
+  section: { marginBottom: 12 },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 8,
+    marginBottom: 6,
   },
-  chipsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  // 4 rectángulos pequeños redondeados (Chips)
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  chipActive: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
-  },
-  chipText: {
+  sectionTitle: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
+    fontWeight: '800',
+    color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  chipTextActive: {
-    color: '#FFFFFF',
-  },
-  draftsShortcut: {
-    padding: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginLeft: 6,
-  },
-  // Rectángulo gris grande ocupando el 70% de la pantalla (representa el mapa)
-  mapContainer: {
-    flex: 1,
-    backgroundColor: '#E2E8F0',
-    position: 'relative',
-  },
-  mapLayersPanel: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    gap: 8,
-    zIndex: 20,
-  },
-  layerChip: {
+  sectionAction: { fontSize: 11, fontWeight: '700', color: '#3730A3' },
+  recentChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    gap: 5,
+    backgroundColor: '#F1F5F9',
     borderRadius: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    maxWidth: 200,
   },
-  layerChipActive: {
-    backgroundColor: '#DC2626',
-    borderColor: '#DC2626',
-  },
-  layerChipText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  layerChipTextActive: {
-    color: '#FFFFFF',
-  },
-  radioPanel: {
-    position: 'absolute',
-    bottom: 88,
-    left: 12,
+  recentChipText: { fontSize: 11, fontWeight: '600', color: '#334155' },
+  trendChip: {
     flexDirection: 'row',
-    gap: 6,
-    zIndex: 20,
-  },
-  radioChip: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FEF3C7',
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    maxWidth: 200,
+  },
+  trendChipText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+  mapCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    marginBottom: 12,
   },
-  radioChipActive: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
+  mapLink: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  mapLinkText: { fontSize: 11, fontWeight: '800', color: '#0F172A' },
+  mapPreview: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#E2E8F0',
   },
-  radioChipText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#0F172A',
+  skeletonStack: { padding: 8 },
+  helpBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
   },
-  radioChipTextActive: {
-    color: '#FFFFFF',
-  },
-  // Botón Flotante (FAB): Círculo oscuro abajo a la derecha con un "+"
+  helpBtnText: { fontSize: 12, fontWeight: '700', color: '#475569' },
   fab: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 72,
     right: 20,
     width: 56,
     height: 56,
