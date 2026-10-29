@@ -28,7 +28,7 @@ export function extraerIdentificador(texto: string): string | null {
   const cbu = texto.replace(/[\s-]/g, '').match(/\b\d{22}\b/);
   if (cbu) return cbu[0];
 
-  const cuit = texto.match(/\b\d{2}-\d{8}-\d\b/);
+  const cuit = texto.match(/\b\d{2}-?\d{8}-?\d\b/);
   if (cuit) return cuit[0];
 
   const alias = texto.match(/\balias[:\s]+([a-z0-9.\-_]{6,20})\b/i);

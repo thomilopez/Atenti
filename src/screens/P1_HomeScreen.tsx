@@ -36,6 +36,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'P1_Home'>;
 const FILTER_CHIPS: { label: string; type: IdentifierType }[] = [
   { label: 'Alias', type: 'Alias' },
   { label: 'CBU', type: 'CBU' },
+  { label: 'CUIT', type: 'CUIT' },
   { label: 'Tel', type: 'Tel' },
   { label: 'Local', type: 'Local' },
 ];
@@ -187,7 +188,7 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
             )}
           </View>
 
-          <View style={styles.chipsRow}>
+          <View style={styles.filterChipsRow}>
             {FILTER_CHIPS.map((chip) => {
               const isActive = selectedChip === chip.type;
               return (
@@ -403,6 +404,12 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14, color: '#0F172A' },
   chipsRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  filterChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 7,

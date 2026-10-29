@@ -13,21 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentCategory, IncidentReport, RootStackParamList } from '../types';
 import { buscarIncidentesPaginados } from '../services/firebase';
+import { CategoriaTipo } from '../services/normalize';
+import { listarCategoriasActivas } from '../services/categoryService';
 import { VeracityBar } from '../components/VeracityBar';
 import { BottomNavBar } from '../components/BottomNavBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P13_SearchResults'>;
 
-const IDENTIFIER_TYPES: (IdentifierType | 'Todas')[] = ['Todas', 'Alias', 'CBU', 'Tel', 'Local'];
-
-const CATEGORIAS: (IncidentCategory | 'Todas')[] = [
-  'Todas',
-  'Estafa Bancaria',
-  'Phishing / Suplantación',
-  'Comercio Virtual Falso',
-  'Local Físico Ilícito',
-  'Clonación de Identidad',
-];
+const IDENTIFIER_TYPES: (IdentifierType | 'Todas')[] = ['Todas', 'Alias', 'CBU', 'CUIT', 'Tel', 'Local'];
 
 const SCORES = [0, 40, 60, 75];
 
@@ -39,6 +32,7 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
     route.params?.initialType ?? 'Todas'
   );
   const [categoria, setCategoria] = useState<IncidentCategory | 'Todas'>('Todas');
+  const [categorias, setCategorias] = useState<CategoriaTipo[]>([]);
   const [scoreMinimo, setScoreMinimo] = useState(0);
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
@@ -76,6 +70,12 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
   useEffect(() => {
     cargar(1);
   }, [cargar]);
+
+  useEffect(() => {
+    listarCategoriasActivas()
+      .then(setCategorias)
+      .catch(() => {});
+  }, []);
 
   const cargarMas = () => {
     if (!loading && hayMas) cargar(pagina + 1);
@@ -134,12 +134,17 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
             </View>
 
             <View style={styles.chipsRow}>
-              {CATEGORIAS.map((c) => (
+              <Chip
+                label="Todas"
+                active={categoria === 'Todas'}
+                onPress={() => setCategoria('Todas')}
+              />
+              {categorias.map((c) => (
                 <Chip
-                  key={c}
-                  label={c}
-                  active={categoria === c}
-                  onPress={() => setCategoria(c)}
+                  key={c.id}
+                  label={c.nombre}
+                  active={categoria === c.nombre}
+                  onPress={() => setCategoria(c.nombre)}
                 />
               ))}
             </View>

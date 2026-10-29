@@ -2,7 +2,7 @@
  * Bloque A · T04 — Proyección pública enmascarada (RG-08 / I-07, Ley 25.326).
  * La UI pública jamás recibe llaves primarias internas sensibles ni email del emisor.
  */
-import type { IdentifierType, IncidentReport } from '../types';
+import type { IdentifierType, IncidentReport, LocationData } from '../types';
 
 export function maskIdentifier(type: IdentifierType, value: string): string {
   const v = (value ?? '').trim();
@@ -15,12 +15,37 @@ export function maskIdentifier(type: IdentifierType, value: string): string {
     const digits = v.replace(/\D/g, '');
     return `****...${digits.slice(-4)}`;
   }
+  if (type === 'CUIT') {
+    const digits = v.replace(/\D/g, '');
+    if (digits.length !== 11) return '**-******-*';
+    return `${digits.slice(0, 2)}-******-${digits.slice(-1)}`;
+  }
   if (type === 'Tel') {
     const digits = v.replace(/\D/g, '');
     return `****...${digits.slice(-4)}`;
   }
   // Local: oculta numeración exacta, conserva calle
   return v.length > 18 ? `${v.slice(0, 18)}...` : v;
+}
+
+/**
+ * RF: privacidad de la ubicacion publica. Devuelve una zona aproximada
+ * (localidad/provincia y coordenadas redondeadas) sin calle ni numero.
+ */
+export function approximateLocation(loc: LocationData): LocationData {
+  const zona = [loc.localidad ?? loc.city, loc.provincia ?? loc.province]
+    .filter(Boolean)
+    .join(', ');
+  return {
+    latitude: Math.round(loc.latitude * 100) / 100,
+    longitude: Math.round(loc.longitude * 100) / 100,
+    address: zona ? `Zona aproximada: ${zona}` : 'Zona aproximada',
+    city: loc.city,
+    province: loc.province,
+    localidad: loc.localidad,
+    provincia: loc.provincia,
+    verificada: loc.verificada,
+  };
 }
 
 export interface PublicIncidentProjection {
@@ -55,7 +80,7 @@ export function toPublicProjection(report: IncidentReport): PublicIncidentProjec
     credibilidadPct: report.credibilityScore,
     desglose: report.credibilityBreakdown,
     estado: report.estadoActual ?? report.status,
-    ubicacion: report.location,
+    ubicacion: approximateLocation(report.location),
     evidenciasEnmascaradas: (report.evidences ?? []).map((e) => ({
       id: e.id,
       type: e.type,

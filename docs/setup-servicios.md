@@ -626,3 +626,38 @@ Si falta una variable obligatoria, el script te dice cuál. Después:
 ```bash
 npm run verify:all
 ```
+
+---
+
+## 23. CUIT, categorías y dirección
+
+### CUIT
+- Se acepta como tipo de identificador (chips y autocompletado).
+- Normalización a **11 dígitos** y validación con **checksum AFIP** y prefijos
+  conocidos (`20`, `23`, `24`, `27`, `30`, `33`, `34`).
+- En la vista pública se enmascara: `20-******-*`.
+- Es buscable y corroborable; el OCR de la Cloud Function extrae CUIT con o sin
+  guiones y lo compara con el denunciado.
+
+### Categorías
+- El catálogo por defecto incluye las categorías ampliadas (venta fraudulenta,
+  falsa inversión, préstamo, soporte falso, falso empleo, romance scam,
+  suscripción, criptomonedas, comercio que no entrega, cobro indebido y
+  suplantación).
+- Cada categoría tiene **ícono y color**; se editan desde
+  **Panel admin → Categorías**.
+- La siembra **solo crea las categorías faltantes**, así no pisa cambios del
+  administrador.
+
+### Dirección y mapa
+- En P4 se puede escribir la dirección (calle, número, localidad, provincia, CP,
+  referencia) y buscarla con geocodificación directa (`expo-location`).
+- El pin y la dirección se mantienen sincronizados: mover el pin actualiza la
+  dirección.
+- **Agrandar mapa** abre un modal a pantalla completa con buscador interno.
+- Sin red, la dirección se guarda como texto y se marca **“sin verificar”**;
+  para categorías con ubicación obligatoria se exige pin o dirección verificada.
+- En la vista pública se muestra una **zona aproximada**, no la dirección exacta.
+
+> La geocodificación usa el geocodificador nativo del dispositivo (no requiere
+> otra API key). En web puede no estar disponible: se usa la dirección manual.

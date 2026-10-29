@@ -26,6 +26,41 @@ import {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P16_AdminCategories'>;
 
+const ICONOS = [
+  'pricetag-outline',
+  'card-outline',
+  'mail-unread-outline',
+  'storefront-outline',
+  'business-outline',
+  'person-circle-outline',
+  'trending-up-outline',
+  'cash-outline',
+  'headset-outline',
+  'briefcase-outline',
+  'heart-dislike-outline',
+  'repeat-outline',
+  'logo-bitcoin',
+  'cube-outline',
+  'receipt-outline',
+  'finger-print-outline',
+  'alert-circle-outline',
+];
+
+const COLORES = [
+  '#DC2626',
+  '#7C3AED',
+  '#0EA5E9',
+  '#F59E0B',
+  '#EF4444',
+  '#16A34A',
+  '#F97316',
+  '#2563EB',
+  '#9333EA',
+  '#DB2777',
+  '#0891B2',
+  '#0F172A',
+];
+
 export const P16_AdminCategoriesScreen: React.FC<Props> = ({ navigation }) => {
   const [categorias, setCategorias] = useState<CategoriaTipo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +68,8 @@ export const P16_AdminCategoriesScreen: React.FC<Props> = ({ navigation }) => {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nombre, setNombre] = useState('');
   const [requiereUbicacion, setRequiereUbicacion] = useState(false);
+  const [icono, setIcono] = useState('pricetag-outline');
+  const [color, setColor] = useState('#0F172A');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -50,6 +87,8 @@ export const P16_AdminCategoriesScreen: React.FC<Props> = ({ navigation }) => {
     setEditandoId(null);
     setNombre('');
     setRequiereUbicacion(false);
+    setIcono('pricetag-outline');
+    setColor('#0F172A');
     setModalVisible(true);
   };
 
@@ -57,6 +96,8 @@ export const P16_AdminCategoriesScreen: React.FC<Props> = ({ navigation }) => {
     setEditandoId(cat.id);
     setNombre(cat.nombre);
     setRequiereUbicacion(cat.requiereUbicacion);
+    setIcono(cat.icono ?? 'pricetag-outline');
+    setColor(cat.color ?? '#0F172A');
     setModalVisible(true);
   };
 
@@ -67,9 +108,14 @@ export const P16_AdminCategoriesScreen: React.FC<Props> = ({ navigation }) => {
     }
     try {
       if (editandoId) {
-        await editarCategoria(editandoId, { nombre: nombre.trim(), requiereUbicacion });
+        await editarCategoria(editandoId, {
+          nombre: nombre.trim(),
+          requiereUbicacion,
+          icono,
+          color,
+        });
       } else {
-        await crearCategoria({ nombre: nombre.trim(), requiereUbicacion });
+        await crearCategoria({ nombre: nombre.trim(), requiereUbicacion, icono, color });
       }
       setModalVisible(false);
       await cargar();
@@ -102,7 +148,15 @@ export const P16_AdminCategoriesScreen: React.FC<Props> = ({ navigation }) => {
           categorias.map((cat) => (
             <View key={cat.id} style={styles.row}>
               <TouchableOpacity style={styles.rowInfo} onPress={() => abrirEdicion(cat)}>
-                <Text style={styles.rowTitle}>{cat.nombre}</Text>
+                <View style={styles.rowTitleWrap}>
+                  <Ionicons
+                    name={(cat.icono ?? 'pricetag-outline') as any}
+                    size={18}
+                    color={cat.color ?? '#0F172A'}
+                    style={styles.rowIcon}
+                  />
+                  <Text style={styles.rowTitle}>{cat.nombre}</Text>
+                </View>
                 <Text style={styles.rowSubtitle}>
                   {cat.requiereUbicacion ? 'Requiere ubicación' : 'Sin ubicación obligatoria'}
                 </Text>
@@ -135,6 +189,38 @@ export const P16_AdminCategoriesScreen: React.FC<Props> = ({ navigation }) => {
               <Text style={styles.switchLabel}>Requiere ubicación obligatoria</Text>
               <Switch value={requiereUbicacion} onValueChange={setRequiereUbicacion} />
             </View>
+
+            <Text style={styles.pickerLabel}>Ícono</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.iconPickerRow}
+            >
+              {ICONOS.map((ic) => (
+                <TouchableOpacity
+                  key={ic}
+                  style={[
+                    styles.iconOption,
+                    icono === ic && { borderColor: color, backgroundColor: `${color}18` },
+                  ]}
+                  onPress={() => setIcono(ic)}
+                >
+                  <Ionicons name={ic as any} size={20} color={icono === ic ? color : '#475569'} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.pickerLabel}>Color</Text>
+            <View style={styles.colorPickerRow}>
+              {COLORES.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  style={[styles.colorDot, { backgroundColor: c }, color === c && styles.colorDotActive]}
+                  onPress={() => setColor(c)}
+                />
+              ))}
+            </View>
+
             <TouchableOpacity style={styles.saveBtn} onPress={guardar}>
               <Text style={styles.saveBtnText}>Guardar</Text>
             </TouchableOpacity>
@@ -179,6 +265,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   rowInfo: { flex: 1, paddingRight: 12 },
+  rowTitleWrap: { flexDirection: 'row', alignItems: 'center' },
+  rowIcon: { marginRight: 8 },
   rowTitle: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
   rowSubtitle: { fontSize: 11, color: '#64748B', marginTop: 2 },
   modalOverlay: {
@@ -207,6 +295,26 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   switchLabel: { flex: 1, fontSize: 13, color: '#334155' },
+  pickerLabel: { fontSize: 12, fontWeight: '700', color: '#334155', marginBottom: 6 },
+  iconPickerRow: { gap: 8, paddingBottom: 12 },
+  iconOption: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  colorDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  colorDotActive: { borderColor: '#0F172A' },
   saveBtn: {
     backgroundColor: '#000000',
     borderRadius: 6,

@@ -20,7 +20,7 @@ import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useAuth } from '../context/AuthContext';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
-import { toPublicProjection } from '../services/masking';
+import { toPublicProjection, approximateLocation } from '../services/masking';
 import { obtenerHistorialScore, EventoScore } from '../services/scoreHistory';
 import { ScoreBreakdown } from '../components/ScoreBreakdown';
 import { useResponsive } from '../hooks/useResponsive';
@@ -40,6 +40,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
   const { mapPickerHeight } = useResponsive();
 
   const proyeccion = useMemo(() => toPublicProjection(incident), [incident]);
+  const publicLocation = useMemo(() => approximateLocation(incident.location), [incident]);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
   const [authHash, setAuthHash] = useState('');
@@ -179,13 +180,13 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
           <Text style={styles.sectionLabel}>Ubicación Georreferenciada</Text>
           <View style={[styles.mapRecuadro, { height: mapPickerHeight }]}>
             <MapViewWrapper
-              selectedLocation={incident.location}
-              centerLatitude={incident.location.latitude}
-              centerLongitude={incident.location.longitude}
+              selectedLocation={publicLocation}
+              centerLatitude={publicLocation.latitude}
+              centerLongitude={publicLocation.longitude}
               style={styles.mapInner}
             />
           </View>
-          <Text style={styles.addressLabel}>📍 {incident.location.address}</Text>
+          <Text style={styles.addressLabel}>📍 {publicLocation.address}</Text>
         </View>
 
         {/* Cuerpo: Debajo 2 cuadrados pequeños para las fotos (Evidencias) */}

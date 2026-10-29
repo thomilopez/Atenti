@@ -21,14 +21,24 @@ function slugify(nombre: string): string {
     .slice(0, 40) || `categoria_${Date.now()}`;
 }
 
-/** Siembra el catálogo por defecto en Firestore (idempotente). */
+/** Siembra el catálogo por defecto en Firestore (solo crea las faltantes). */
 export async function sembrarCategorias(): Promise<void> {
   if (!isFirebaseConfigured || sembrado) return;
   try {
+    const snap = await getDocs(collection(db, 'categorias'));
+    const existentes = new Set(snap.docs.map((d) => d.id));
     for (const cat of CATEGORIAS) {
+      if (existentes.has(cat.id)) continue;
       await setDoc(
         doc(db, 'categorias', cat.id),
-        { nombre: cat.nombre, requiereUbicacion: cat.requiereUbicacion, activa: cat.activa, _serverTimestamp: serverTimestamp() },
+        {
+          nombre: cat.nombre,
+          requiereUbicacion: cat.requiereUbicacion,
+          activa: cat.activa,
+          icono: cat.icono ?? null,
+          color: cat.color ?? null,
+          _serverTimestamp: serverTimestamp(),
+        },
         { merge: true }
       );
     }
@@ -41,12 +51,12 @@ export async function sembrarCategorias(): Promise<void> {
 export async function listarTodasCategorias(): Promise<CategoriaTipo[]> {
   if (isFirebaseConfigured) {
     try {
+      await sembrarCategorias();
       const snap = await getDocs(collection(db, 'categorias'));
       if (!snap.empty) {
         memoria = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CategoriaTipo, 'id'>) }));
         return memoria.map((c) => ({ ...c }));
       }
-      await sembrarCategorias();
     } catch (e) {
       console.warn('listarTodasCategorias: Firestore no disponible, uso memoria:', e);
     }
@@ -62,6 +72,8 @@ export async function listarCategoriasActivas(): Promise<CategoriaTipo[]> {
 export async function crearCategoria(input: {
   nombre: string;
   requiereUbicacion: boolean;
+  icono?: string;
+  color?: string;
 }): Promise<CategoriaTipo> {
   const nombre = input.nombre.trim();
   if (!nombre) throw new Error('El nombre de la categoría es obligatorio');
@@ -78,6 +90,8 @@ export async function crearCategoria(input: {
     nombre,
     requiereUbicacion: input.requiereUbicacion,
     activa: true,
+    icono: input.icono,
+    color: input.color,
   };
   memoria = [...memoria, nueva];
 
@@ -87,6 +101,8 @@ export async function crearCategoria(input: {
         nombre,
         requiereUbicacion: input.requiereUbicacion,
         activa: true,
+        icono: input.icono ?? null,
+        color: input.color ?? null,
         _serverTimestamp: serverTimestamp(),
       });
     } catch (e) {
@@ -99,7 +115,9 @@ export async function crearCategoria(input: {
 
 export async function editarCategoria(
   id: string,
-  cambios: Partial<Pick<CategoriaTipo, 'nombre' | 'requiereUbicacion' | 'activa'>>
+  cambios: Partial<
+    Pick<CategoriaTipo, 'nombre' | 'requiereUbicacion' | 'activa' | 'icono' | 'color'>
+  >
 ): Promise<CategoriaTipo> {
   const actual = memoria.find((c) => c.id === id);
   if (!actual) throw new Error('Categoría no encontrada');

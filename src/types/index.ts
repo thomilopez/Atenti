@@ -3,7 +3,7 @@
  * Plataforma colaborativa y geolocalizada de prevención de fraudes en Argentina
  */
 
-export type IdentifierType = 'Alias' | 'CBU' | 'Tel' | 'Local';
+export type IdentifierType = 'Alias' | 'CBU' | 'CUIT' | 'Tel' | 'Local';
 
 /**
  * Categoría de incidencia. Es un string para permitir categorías
@@ -21,6 +21,15 @@ export interface LocationData {
   address: string;
   city?: string;
   province?: string;
+  /** Campos de dirección manual (RF direccion). */
+  calle?: string;
+  numero?: string;
+  localidad?: string;
+  provincia?: string;
+  codigoPostal?: string;
+  referencia?: string;
+  /** true si se obtuvo por geocodificacion; false si es texto sin verificar. */
+  verificada?: boolean;
 }
 
 export interface EvidenceItem {

@@ -54,7 +54,8 @@
     "verify:legal": "node scripts/verify-legal.js",
     "verify:notificaciones": "node scripts/verify-notificaciones.js",
     "verify:home": "node scripts/verify-home.js",
-    "verify:all": "node scripts/verify-mvp.js && node scripts/verify-block-a.js && node scripts/verify-backend.js && node scripts/verify-denuncias.js && node scripts/verify-evidencias.js && node scripts/verify-impugnaciones.js && node scripts/verify-legal.js && node scripts/verify-notificaciones.js && node scripts/verify-home.js"
+    "verify:report-capture": "node scripts/verify-report-capture.js",
+    "verify:all": "node scripts/verify-mvp.js && node scripts/verify-block-a.js && node scripts/verify-backend.js && node scripts/verify-denuncias.js && node scripts/verify-evidencias.js && node scripts/verify-impugnaciones.js && node scripts/verify-legal.js && node scripts/verify-notificaciones.js && node scripts/verify-home.js && node scripts/verify-report-capture.js"
   },
   "private": true
 }

@@ -47,7 +47,7 @@ npm run web
 | **P1** | `P1_HomeScreen` | **Inicio search-first:** buscador protagonico, chips `[Alias] [CBU] [Tel] [Local]`, búsquedas recientes, tendencias, skeleton y preview compacto del mapa con "Ver mapa completo". FAB para reportar. |
 | **P2** | `P2_ReportDetailScreen` | **Detalle de Incidencia:** título, semáforo, barra de veracidad, desglose, mapa, evidencias enmascaradas, historial de score y botones para impugnar o denunciar el mismo objetivo. |
 | **P3** | `P3_LegalAuthScreen` | **Gate Login & DDJJ:** "Continuar con Google" y checkbox obligatorio de Declaración Jurada. |
-| **P4** | `P4_CreateReportScreen` | **Formulario Paso 1:** categoría, tipo de identificador, valor, relato (mín. 20), mapa para fijar pin y credibilidad real. Incluye validación de CBU (ex P6). |
+| **P4** | `P4_CreateReportScreen` | **Formulario Paso 1:** categoría (con ícono/color), tipo de identificador (Alias/CBU/CUIT/Tel/Local), valor, relato (mín. 20), dirección manual + pin y mapa expandible. Incluye validaciones de CBU/CUIT/Tel (ex P6). |
 | **P5** | `P5_OCRValidationScreen` | **Evidencias Paso 2:** captura, comprobante o PDF; OCR; límites 5 archivos/10MB y envío del reporte. |
 | **P7** | `P7_OfflineModal` | **Offline:** aviso de borrador guardado, reintento y acceso a borradores. |
 | **P8** | `P8_ConfirmationScreen` | **Confirmación:** código de seguimiento y credibilidad final. |
