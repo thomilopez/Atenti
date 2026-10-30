@@ -104,6 +104,7 @@ export interface IncidentReport {
 
 export interface ReportDraft {
   id: string;
+  clave_operacion: string; // Identificador único para el borrador, usado para guardar y recuperar
   savedAt: number;
   /** RG-06: el borrador retiene la misma clave del intento lógico (E2/E3). */
   claveOperacion: string;
