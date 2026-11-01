@@ -684,3 +684,25 @@ Desplegar reglas, índices y funciones:
 ```bash
 firebase deploy --only firestore:rules,firestore:indexes,functions
 ```
+
+---
+
+## 25. Seguridad de claves
+
+- **Nunca** commitees `.env`, `google-services.json` ni `GoogleService-Info.plist`.
+  Ya están en `.gitignore`.
+- `google-services.json` se usa localmente y **no se trackea**. Para builds de
+  EAS se incluye vía `.easignore` (que reemplaza a `.gitignore` en EAS). Si
+  construís desde otra máquina, descargalo de Firebase y colocalo en la raíz.
+- La **API key de Maps** se toma de `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` y se
+  inyecta en `app.config.js`. Para EAS, definí esa variable en el entorno del
+  proyecto (`eas env:create`).
+- Si una key se filtró:
+  1. **Rotala** en Google Cloud → APIs & Services → Credentials (creá una nueva
+     y borrá la expuesta).
+  2. Restringila por aplicación (Android package + SHA-1, iOS bundle) y por API.
+  3. Si estuvo en commits públicos, considerá reescribir el historial
+     (`git filter-repo`) y force-push; el historial de git conserva versiones
+     anteriores incluso si borrás el archivo actual.
+- Las claves de Firebase web (`apiKey`, `appId`, etc.) son identificadores
+  públicos del cliente; la seguridad real la dan las reglas y API restrictions.

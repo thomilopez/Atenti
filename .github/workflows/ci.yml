@@ -16,11 +16,15 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Instalar dependencias
         run: npm ci
+
+      - name: Instalar y compilar Functions
+        working-directory: functions
+        run: npm ci && npm run build
 
       - name: Typecheck
         run: npm run typecheck

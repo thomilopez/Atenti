@@ -36,6 +36,11 @@ npm run web
 > [`docs/setup-servicios.md`](docs/setup-servicios.md) y completá el archivo
 > `.env` usando `.env.example` como base. Sin `.env`, la app funciona en modo
 > demo con el fallback en memoria.
+>
+> **Claves:** la API key de Maps se inyecta desde
+> `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` vía `app.config.js` (no se commitea). El
+> archivo `google-services.json` **no se trackea en git**: cada entorno lo coloca
+> localmente (y EAS lo incluye mediante `.easignore`).
 
 ---
 

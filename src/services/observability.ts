@@ -13,7 +13,7 @@ export function inicializarObservabilidad(): void {
   inicializado = true;
 
   // Handler global de errores no controlados (React Native).
-  const errorUtils = (global as unknown as {
+  const errorUtils = (globalThis as unknown as {
     ErrorUtils?: {
       getGlobalHandler?: () => (error: unknown, isFatal?: boolean) => void;
       setGlobalHandler?: (handler: (error: unknown, isFatal?: boolean) => void) => void;
