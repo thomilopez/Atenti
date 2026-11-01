@@ -52,12 +52,12 @@ export const isFirebaseConfigured = hasRealFirebaseConfig();
 // Configuración de Firebase. Usa variables de entorno; si no están definidas
 // arranca en modo demo con valores placeholders y fallback en memoria.
 const firebaseConfig = {
-  apiKey: env.firebase.apiKey || 'AIzaSyDemoAtentiApiKey2026ArgentinaMVP',
-  authDomain: env.firebase.authDomain || 'atenti-argentina-mvp.firebaseapp.com',
-  projectId: env.firebase.projectId || 'atenti-argentina-mvp',
-  storageBucket: env.firebase.storageBucket || 'atenti-argentina-mvp.appspot.com',
-  messagingSenderId: env.firebase.messagingSenderId || '928374829103',
-  appId: env.firebase.appId || '1:928374829103:web:7823abce9012837',
+  apiKey: env.firebase.apiKey || 'demo-api-key',
+  authDomain: env.firebase.authDomain || 'demo.firebaseapp.com',
+  projectId: env.firebase.projectId || 'demo-atenti',
+  storageBucket: env.firebase.storageBucket || 'demo-atenti.appspot.com',
+  messagingSenderId: env.firebase.messagingSenderId || '000000000000',
+  appId: env.firebase.appId || 'demo-app-id',
 };
 
 // Inicialización de la App Firebase
