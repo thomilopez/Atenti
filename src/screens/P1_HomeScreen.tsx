@@ -5,11 +5,11 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  SafeAreaView,
   StatusBar,
   ScrollView,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentReport, RootStackParamList } from '../types';
@@ -126,7 +126,7 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       <View style={[styles.header, { paddingHorizontal: gutter }]}>
@@ -194,12 +194,8 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
               return (
                 <TouchableOpacity
                   key={chip.type}
-                  activeOpacity={0.75}
-                  hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                   style={[styles.chip, isActive && styles.chipActive]}
                   onPress={() => setSelectedChip(isActive ? null : chip.type)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Filtrar por ${chip.label}`}
                 >
                   <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
                     {chip.label}

@@ -5,13 +5,6 @@
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
-  getAuth,
-  initializeAuth,
-  // @ts-ignore - getReactNativePersistence está disponible en el bundle react-native de firebase/auth
-  getReactNativePersistence,
-} from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
   getFirestore,
   collection,
   doc,
@@ -67,25 +60,9 @@ const firebaseConfig = {
   appId: env.firebase.appId || 'demo-app-id',
 };
 
-// Inicialización de la App Firebase y Servicios
+// Inicialización de la App Firebase
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
-
-// Inicialización de Firebase Auth con persistencia en React Native (AsyncStorage) y fallback en Web
-const initAuth = () => {
-  if (Platform.OS !== 'web' && typeof getReactNativePersistence === 'function') {
-    try {
-      return initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage),
-      });
-    } catch (_e) {
-      return getAuth(app);
-    }
-  }
-  return getAuth(app);
-};
-
-export const auth = initAuth();
 
 // Semilla inicial con incidentes geolocalizados en Argentina (CABA, Córdoba, Rosario, Mendoza)
 export const INITIAL_SEED_INCIDENTS: IncidentReport[] = [
@@ -595,14 +572,13 @@ export interface RegistrarDenunciaResult {
 
 /**
  * OPERACIÓN registrarDenuncia — pseudocódigo Etapa 3 §5 llevado a código.
- * 1) Requiere Google + DDJJ (RG-01, CA2 / CP-04). 2) Idempotencia (RG-06).
+ * 1) Requiere Google + DDJJ (RG-01). 2) Idempotencia (RG-06).
  * 3) Transacción atómica Denuncia+Objetivo+Ubicación+Evidencias+Historial (RG-04).
- * 4) Auditoría inmutable RNF3: UID, IP, timestamp y hash SHA-256 de DDJJ.
- * 5) RECIBIDA -> PUBLICADA automático si pct>=20 (camino principal Etapa 2 §4.1).
+ * 4) RECIBIDA -> PUBLICADA automático si pct>=20 (camino principal Etapa 2 §4.1).
  */
 export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<RegistrarDenunciaResult> {
   if (!input.googleVerificado || !input.ddjjAceptada) {
-    throw new Error('RG-01: se requiere sesión Google válida y DDJJ aceptada (CP-04)');
+    throw new Error('RG-01: se requiere sesión Google válida y DDJJ aceptada');
   }
   const claveOperacion = input.claveOperacion?.trim() || generateOperationKey();
   if (!isValidOperationKey(claveOperacion)) throw new Error('RG-06: clave_operacion inválida');
@@ -639,22 +615,11 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
   const seq = await nextTrackingSequence();
   const codigo = formatTrackingCode(seq);
   const incidentId = `den_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const timestampIso = new Date().toISOString();
-  const clientIp = input.clientIp || '190.191.240.12';
-
-  // RNF3: Generar hash inmutable de la DDJJ vinculada a la identidad
-  const ddjjHash =
-    input.ddjjHash ||
-    (await generateDdjjHash({
-      uid: input.uid,
-      timestamp: timestampIso,
-      clientIp,
-    }));
 
   const audit: AuditMetadata = {
     uid: input.uid,
     userEmail: input.userEmail,
-    clientIp,
+    clientIp: '0.0.0.0',
     platform: Platform.OS as 'android' | 'ios' | 'web',
     createdAt: new Date().toISOString(),
     ddjjHash: input.ddjjHash,

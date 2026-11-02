@@ -9,10 +9,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { IncidentReport, LocationData } from '../types';
 import { getTrafficLightColor } from '../services/credibility';
-import {
-  getCurrentUserLocation,
-  DEFAULT_BUENOS_AIRES_LOCATION,
-} from '../services/locationService';
 
 interface MapViewWrapperProps {
   incidents?: IncidentReport[];
@@ -33,39 +29,7 @@ interface MapViewWrapperProps {
   showHeatmap?: boolean;
 }
 
-// Error Boundary para capturar fallos nativos de react-native-maps y degradar gracefully
-interface ErrorBoundaryProps {
-  fallback: React.ReactNode;
-  children: React.ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-}
-
-class MapErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(_error: any): ErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: any, info: any) {
-    console.warn('Error al renderizar mapa nativo, alternando a mapa interactivo de respaldo:', error, info);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
-// Carga condicional de react-native-maps para plataformas móviles
+// Para plataformas móviles nativas importamos condicionalmente react-native-maps
 let NativeMapView: any = null;
 let NativeMarker: any = null;
 let NativeCircle: any = null;
@@ -126,7 +90,6 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
   radioCenter,
   showHeatmap = false,
 }) => {
-  const mapRef = useRef<any>(null);
   const [activeIncident, setActiveIncident] = useState<IncidentReport | null>(null);
   const mapRef = useRef<any>(null);
 
@@ -262,7 +225,7 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
   // Fallback visual interactivo para Web / Expo Web (con mapa estilizado de Argentina / CABA)
   return (
     <View style={[styles.webContainer, style]}>
-      {/* Fondo de mapa con cuadrícula temática */}
+      {/* Fondo de mapa temático */}
       <View style={styles.gridOverlay}>
         <View style={styles.riverDecoration} />
         <View style={styles.avenueH1} />
@@ -291,27 +254,12 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
 
       <View style={styles.mapHeaderBadge}>
         <Ionicons name="map-outline" size={14} color="#0284C7" />
-        <Text style={styles.mapHeaderBadgeText} numberOfLines={1}>
-          {selectedLocation
-            ? selectedLocation.address
-            : userLocation
-            ? userLocation.address
-            : 'Área Metropolitana - Red Atenti'}
+        <Text style={styles.mapHeaderBadgeText}>
+          {selectedLocation ? selectedLocation.address : 'Área Metropolitana - Red Atenti'}
         </Text>
       </View>
 
-      {/* Marcador de ubicación actual del usuario en la simulación */}
-      {userLocation && (
-        <View style={[styles.webUserMarker, { left: '50%', top: '50%' }]}>
-          <View style={styles.userMarkerPulse} />
-          <View style={styles.userMarkerCore} />
-          <View style={styles.userMarkerTooltip}>
-            <Text style={styles.userMarkerTooltipText}>Tu ubicación</Text>
-          </View>
-        </View>
-      )}
-
-      {/* Marcadores de incidentes sobre el mapa */}
+      {/* Renderizado de pines sobre el lienzo */}
       {incidents.map((incident, index) => {
         const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
         const posX = 15 + ((index * 26 + 18) % 72);
@@ -325,7 +273,6 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
               setActiveIncident(incident);
               if (onMarkerPress) onMarkerPress(incident);
             }}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             style={[
               styles.webPin,
               {
@@ -336,17 +283,17 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
             ]}
           >
             <View style={[styles.pinInner, { backgroundColor: pinColor }]} />
-            <Text style={styles.pinLabel} numberOfLines={1} ellipsizeMode="tail">
+            <Text style={styles.pinLabel} numberOfLines={1}>
               {incident.identifierValue}
             </Text>
           </TouchableOpacity>
         );
       })}
 
-      {/* Pin seleccionado al fijar ubicación */}
+      {/* Pin seleccionado por el usuario en P4 */}
       {selectedLocation && (
-        <View style={[styles.selectedPinContainer, { left: '46%', top: '44%' }]}>
-          <Ionicons name="location-sharp" size={32} color="#2563EB" />
+        <View style={[styles.selectedPinContainer, { left: '48%', top: '48%' }]}>
+          <Ionicons name="location-sharp" size={32} color="#EF4444" />
           <View style={styles.pinPulse} />
           <Text style={styles.selectedPinText}>
             {draggablePin ? 'Arrastrá el pin' : 'Punto fijado'}
@@ -354,11 +301,11 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
         </View>
       )}
 
-      {/* Tarjeta flotante de previsualización al tocar un marcador */}
-      {activeIncident && (
+      {/* Tarjeta de previsualización flotante al tocar un pin */}
+      {activeIncident && onMarkerPress && (
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => onMarkerPress && onMarkerPress(activeIncident)}
+          onPress={() => onMarkerPress(activeIncident)}
           style={styles.floatingCard}
         >
           <View style={styles.cardHeader}>
@@ -372,16 +319,12 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
                 },
               ]}
             />
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {activeIncident.title}
-            </Text>
+            <Text style={styles.cardTitle}>{activeIncident.title}</Text>
             <Text style={styles.cardScore}>
               {activeIncident.credibilityScore}% veracidad
             </Text>
           </View>
-          <Text style={styles.cardCategory} numberOfLines={1}>
-            {activeIncident.category}
-          </Text>
+          <Text style={styles.cardCategory}>{activeIncident.category}</Text>
           <Text style={styles.cardAddress} numberOfLines={1}>
             📍 {activeIncident.location.address}
           </Text>
@@ -390,131 +333,6 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
       )}
     </View>
   );
-
-  // Renderizado Nativo (Android / iOS con Google Maps / Apple Maps)
-  if (Platform.OS !== 'web' && NativeMapView && NativeMarker) {
-    // Si hay una API Key configurada explícitamente en el entorno, usamos PROVIDER_GOOGLE;
-    // de lo contrario, dejamos undefined para que Android use el provider nativo/Expo sin fallas de autorización
-    const nativeProvider =
-      Platform.OS === 'android' && process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
-        ? NativeProviderGoogle
-        : undefined;
-
-    return (
-      <MapErrorBoundary fallback={renderFallbackMap()}>
-        <View style={[styles.container, style]}>
-          <NativeMapView
-            ref={mapRef}
-            style={StyleSheet.absoluteFill}
-            provider={nativeProvider}
-            initialRegion={currentRegion}
-            loadingEnabled={true}
-            loadingIndicatorColor="#0F172A"
-            loadingBackgroundColor="#F8FAFC"
-            showsUserLocation={false} // Usamos marcador personalizado para consistencia visual
-            showsCompass={true}
-            showsMyLocationButton={false} // Usamos nuestro FAB con estilo de diseño Atenti
-            onMapReady={() => setIsMapReady(true)}
-            onPress={(e: any) => {
-              if (onSelectLocation && e.nativeEvent?.coordinate) {
-                const { latitude, longitude } = e.nativeEvent.coordinate;
-                onSelectLocation({
-                  latitude,
-                  longitude,
-                  address: `Punto fijado (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
-                });
-              }
-            }}
-          >
-            {/* Marcador distintivo de la ubicación actual del usuario */}
-            {userLocation && (
-              <NativeMarker
-                coordinate={{
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                }}
-                title="Tu ubicación"
-                description="Estás aquí"
-                zIndex={999}
-              >
-                <View style={styles.userMarkerOuter}>
-                  <View style={styles.userMarkerPulse} />
-                  <View style={styles.userMarkerCore} />
-                </View>
-              </NativeMarker>
-            )}
-
-            {/* Marcadores de incidentes reportados en la comunidad */}
-            {incidents.map((incident) => {
-              const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
-              return (
-                <NativeMarker
-                  key={incident.id}
-                  coordinate={{
-                    latitude: incident.location.latitude,
-                    longitude: incident.location.longitude,
-                  }}
-                  pinColor={pinColor}
-                  title={incident.title}
-                  description={`${incident.category} • Credibilidad: ${incident.credibilityScore}%`}
-                  onPress={() => {
-                    setActiveIncident(incident);
-                    if (onMarkerPress) onMarkerPress(incident);
-                  }}
-                />
-              );
-            })}
-
-            {/* Marcador de punto fijado manualmente (ej: al crear reporte) */}
-            {selectedLocation && (
-              <NativeMarker
-                coordinate={{
-                  latitude: selectedLocation.latitude,
-                  longitude: selectedLocation.longitude,
-                }}
-                pinColor="#2563EB"
-                title="Ubicación fijada"
-                description={selectedLocation.address}
-              />
-            )}
-          </NativeMapView>
-
-          {/* Indicador de carga inicial con auto-liberación por timeout */}
-          {!isMapReady && (
-            <View style={styles.loadingOverlay} pointerEvents="none">
-              <ActivityIndicator size="large" color="#0F172A" />
-              <Text style={styles.loadingText}>Cargando mapa de alertas...</Text>
-            </View>
-          )}
-
-          {/* Botón flotante para recentrar en la ubicación del usuario */}
-          {showRecenterButton && (
-            <TouchableOpacity
-              style={styles.recenterFab}
-              activeOpacity={0.8}
-              onPress={() => locateUser(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Centrar en mi ubicación actual"
-              accessibilityRole="button"
-            >
-              {isLocating ? (
-                <ActivityIndicator size="small" color="#0F172A" />
-              ) : (
-                <Ionicons
-                  name={userLocation ? 'locate' : 'locate-outline'}
-                  size={22}
-                  color="#0F172A"
-                />
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-      </MapErrorBoundary>
-    );
-  }
-
-  // Fallback interactivo para Web / Expo Web (simulación enriquecida de mapa geolocalizado)
-  return renderFallbackMap();
 };
 
 const styles = StyleSheet.create({
@@ -522,7 +340,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     overflow: 'hidden',
-    position: 'relative',
   },
   webContainer: {
     width: '100%',
@@ -530,19 +347,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
     overflow: 'hidden',
     position: 'relative',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    zIndex: 10,
-  },
-  loadingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
   },
   gridOverlay: {
     ...StyleSheet.absoluteFill,
@@ -634,14 +438,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    maxWidth: '80%',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -652,55 +455,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#0369A1',
-    flexShrink: 1,
-  },
-  userMarkerOuter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userMarkerPulse: {
-    position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(37, 99, 235, 0.25)',
-  },
-  userMarkerCore: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#2563EB',
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  webUserMarker: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ translateX: -16 }, { translateY: -16 }],
-    zIndex: 12,
-  },
-  userMarkerTooltip: {
-    marginTop: 4,
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  userMarkerTooltipText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
   webPin: {
     position: 'absolute',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+    padding: 4,
     borderRadius: 14,
     borderWidth: 2,
     flexDirection: 'row',
@@ -713,9 +472,9 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   pinInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   pinLabel: {
     fontSize: 10,
@@ -736,7 +495,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.2)',
   },
   selectedPinText: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#1E293B',
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
@@ -744,25 +503,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     marginTop: 2,
-  },
-  recenterFab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 84, // Ubicado cómodamente arriba del FAB principal
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
-    zIndex: 25,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   floatingCard: {
     position: 'absolute',

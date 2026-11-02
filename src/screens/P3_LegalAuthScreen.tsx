@@ -4,16 +4,15 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  SafeAreaView,
   Alert,
+  ActivityIndicator,
   TextInput,
-  ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { AppButton } from '../components/AppButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P3_LegalAuth'>;
 
@@ -29,15 +28,15 @@ export const P3_LegalAuthScreen: React.FC<Props> = ({ route, navigation }) => {
   const handleContinue = async () => {
     if (!acceptedDDJJ) {
       Alert.alert(
-        'Declaración Jurada Requerida (CP-04 / RG-01)',
-        'Debes aceptar expresamente la Declaración Jurada y Términos para identificarte y emitir reportes.'
+        'Declaración Jurada Requerida',
+        'Debes tildar el casillero de aceptación de DDJJ y Términos para continuar.'
       );
       return;
     }
 
     try {
       setLoading(true);
-      await loginWithGoogle(userEmail.trim() || undefined);
+      await loginWithGoogle();
       setLoading(false);
 
       if (returnTo === 'P4_CreateReport') {
@@ -57,96 +56,83 @@ export const P3_LegalAuthScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.container}>
-          {/* Cabecera con marca Atenti */}
-          <View style={styles.header}>
-            <Text style={styles.brandTitle}>Atenti</Text>
-            <Text style={styles.brandSub}>
-              Crea una cuenta segura en 1 minuto para acceder a toda la red
-            </Text>
-          </View>
-
-          {/* Cuerpo central: Ícono de candado y formulario */}
-          <View style={styles.centerBody}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="lock-closed" size={36} color="#0F172A" />
-            </View>
-
-            <Text style={styles.mainTitle}>Para denunciar necesitás identificarte</Text>
-
-            {/* Input simulado de email */}
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Ingresa tu correo"
-                placeholderTextColor="#94A3B8"
-                value={userEmail}
-                onChangeText={setUserEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-            </View>
-
-            {/* Botón ancho "Continuar con Google" */}
-            <AppButton
-              title="Continuar con Google"
-              onPress={handleContinue}
-              variant="outline"
-              size="md"
-              iconLeft="logo-google"
-              iconColor="#EA4335"
-              style={styles.googleBtn}
-              disabled={loading}
-            />
-
-            {/* Botón principal oscuro "Continuar" */}
-            <AppButton
-              title="Continuar"
-              onPress={handleContinue}
-              variant="primary"
-              size="lg"
-              loading={loading}
-              disabled={!acceptedDDJJ || loading}
-              style={styles.continueBtn}
-            />
-          </View>
-
-          {/* Abajo: Cuadradito (checkbox) con texto legal DDJJ y Términos */}
-          <View style={styles.legalFooter}>
-            <TouchableOpacity
-              style={styles.checkboxRow}
-              activeOpacity={0.75}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => setAcceptedDDJJ(!acceptedDDJJ)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: acceptedDDJJ }}
-            >
-              <View
-                style={[
-                  styles.checkboxSquare,
-                  acceptedDDJJ && styles.checkboxSquareChecked,
-                ]}
-              >
-                {acceptedDDJJ && (
-                  <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                )}
-              </View>
-
-              <View style={styles.legalTextContainer}>
-                <Text style={styles.legalText}>
-                  Acepto DDJJ y Términos. Declaro bajo juramento que los datos aportados son verídicos, asumiendo responsabilidad conforme al protocolo de Atenti.
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Cabecera con marca Atenti */}
+        <View style={styles.header}>
+          <Text style={styles.brandTitle}>Atenti</Text>
+          <Text style={styles.brandSub}>
+            Crea una cuenta segura en 1 minuto para acceder a toda la red
+          </Text>
         </View>
-      </ScrollView>
+
+        {/* Cuerpo central: Ícono genérico de candado o usuario y texto principal */}
+        <View style={styles.centerBody}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="lock-closed" size={36} color="#0F172A" />
+          </View>
+
+          <Text style={styles.mainTitle}>Para denunciar necesitás identificarte</Text>
+
+          {/* Input simulado de email */}
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Ingresa tu correo"
+              placeholderTextColor="#94A3B8"
+              value={userEmail}
+              onChangeText={setUserEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
+
+          {/* Botón ancho "Continuar con Google" */}
+          <TouchableOpacity
+            style={styles.googleBtn}
+            activeOpacity={0.88}
+            onPress={handleContinue}
+          >
+            <Ionicons name="logo-google" size={18} color="#EA4335" />
+            <Text style={styles.googleBtnText}>Google</Text>
+          </TouchableOpacity>
+
+          {/* Botón principal oscuro "Continuar" */}
+          <TouchableOpacity
+            style={[styles.continueBtn, !acceptedDDJJ && styles.btnDisabled]}
+            activeOpacity={0.88}
+            onPress={handleContinue}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.continueBtnText}>Continuar</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Abajo: Un cuadradito (checkbox) con líneas simulando el texto legal "Acepto DDJJ y Términos" */}
+        <View style={styles.legalFooter}>
+          <TouchableOpacity
+            style={styles.checkboxRow}
+            activeOpacity={0.8}
+            onPress={() => setAcceptedDDJJ(!acceptedDDJJ)}
+          >
+            {/* Cuadradito (checkbox) */}
+            <View style={[styles.checkboxSquare, acceptedDDJJ && styles.checkboxSquareChecked]}>
+              {acceptedDDJJ && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+            </View>
+
+            {/* Texto legal / líneas simulando DDJJ y Términos */}
+            <View style={styles.legalTextContainer}>
+              <Text style={styles.legalText}>
+                Acepto DDJJ y Términos. Declaro bajo juramento que los datos aportados son verídicos, asumiendo responsabilidad conforme al protocolo de Atenti.
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
     </SafeAreaView>
   );
 };
@@ -156,22 +142,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
   container: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
+    flex: 1,
+    paddingHorizontal: 24,
     justifyContent: 'space-between',
+    paddingVertical: 24,
   },
   header: {
     alignItems: 'center',
-    paddingTop: 12,
-    marginBottom: 16,
+    paddingTop: 16,
   },
   brandTitle: {
     fontSize: 28,
@@ -181,16 +160,16 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   brandSub: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
     textAlign: 'center',
-    maxWidth: 280,
-    lineHeight: 18,
+    maxWidth: 240,
+    lineHeight: 16,
   },
   centerBody: {
     alignItems: 'center',
     width: '100%',
-    paddingVertical: 12,
+    paddingVertical: 20,
   },
   iconCircle: {
     width: 68,
@@ -213,36 +192,63 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 8,
+    borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    minHeight: 48,
-    justifyContent: 'center',
     marginBottom: 12,
   },
   textInput: {
     fontSize: 14,
     color: '#0F172A',
   },
+  // Botón ancho "Continuar con Google"
   googleBtn: {
-    marginBottom: 12,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
     borderColor: '#CBD5E1',
+    borderRadius: 6,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  googleBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
   },
   continueBtn: {
-    marginTop: 4,
+    width: '100%',
+    backgroundColor: '#000000',
+    borderRadius: 6,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  continueBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
   legalFooter: {
-    paddingTop: 24,
+    paddingTop: 16,
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
   },
+  // Cuadradito (checkbox)
   checkboxSquare: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 3,
     borderWidth: 1.5,
     borderColor: '#64748B',
     justifyContent: 'center',
@@ -257,8 +263,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   legalText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#64748B',
-    lineHeight: 17,
+    lineHeight: 16,
   },
 });

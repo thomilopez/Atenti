@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.atenti.app",
@@ -34,11 +29,6 @@
         "ACCESS_FINE_LOCATION",
         "READ_EXTERNAL_STORAGE"
       ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSy_ATENTI_ANDROID_MAPS_KEY"
-        }
-      },
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -56,8 +46,7 @@
         {
           "backgroundColor": "#0F172A",
           "image": "./assets/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain"
+          "imageWidth": 200
         }
       ],
       "@react-native-google-signin/google-signin",

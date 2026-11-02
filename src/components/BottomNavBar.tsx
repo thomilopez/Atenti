@@ -1,11 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types';
-import { useAuth } from '../context/AuthContext';
 
 interface BottomNavBarProps {
   activeTab?: 'home' | 'map' | 'report' | 'stories' | 'profile';
@@ -13,18 +11,6 @@ interface BottomNavBarProps {
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const insets = useSafeAreaInsets();
-  const { isAuthenticated } = useAuth();
-
-  const hitSlop = { top: 8, bottom: 8, left: 12, right: 12 };
-
-  const handleReportPress = () => {
-    if (!isAuthenticated) {
-      navigation.navigate('P3_LegalAuth', { returnTo: 'P4_CreateReport' });
-    } else {
-      navigation.navigate('P4_CreateReport');
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -97,36 +83,18 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
 };
 
 const styles = StyleSheet.create({
-  wrapper: {
+  container: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    width: '100%',
-    maxWidth: 600,
-    alignSelf: 'center',
-    paddingTop: 6,
-  },
   tabItem: {
-    paddingVertical: 4,
-    paddingHorizontal: 12,
+    padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 48,
-    minHeight: 44,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  tabLabelActive: {
-    color: '#0F172A',
-    fontWeight: '700',
   },
 });

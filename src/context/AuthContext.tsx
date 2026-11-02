@@ -4,18 +4,7 @@
  * verificación de identidad para RG-07.
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  onAuthStateChanged,
-  signOut,
-  signInWithCredential,
-  GoogleAuthProvider,
-  signInWithEmailAndPassword,
-} from 'firebase/auth';
-import * as WebBrowser from 'expo-web-browser';
-import { auth } from '../services/firebase';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { UserIdentityFactors, UserProfile } from '../types';
 import { env, hasRealFirebaseConfig } from '../services/env';
 import {
@@ -85,9 +74,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setDniEstado('verificando');
   };
 
-  /**
-   * T07: Verificación de teléfono progresiva (SMS OTP +15 pts)
-   */
   const verifyPhone = async (phoneNumber: string, code: string): Promise<boolean> => {
     const ok = await authService.verifyPhone(phoneNumber, code);
     if (user && ok) {
@@ -113,16 +99,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return resultado;
   };
 
-  /**
-   * Cálculo de puntaje del factor Identidad según RG-07 (Hasta 40 pts)
-   * U0: 0 pts | Google: +15 | Teléfono: +15 | DNI: +10
-   */
   const calculateMyIdentityScore = (): number => {
     let pts = 0;
     if (identityFactors.googleAuth) pts += 15;
     if (identityFactors.phoneVerified) pts += 15;
     if (identityFactors.dniVerified) pts += 10;
-    return Math.min(40, pts);
+    return pts;
   };
 
   return (
@@ -152,4 +134,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

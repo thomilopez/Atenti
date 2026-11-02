@@ -161,7 +161,6 @@ export interface ValidationErrorInfo {
 
 export type RootStackParamList = {
   P0_Welcome: undefined;
-  P0_Welcome: undefined;
   P1_Home: undefined;
   P2_ReportDetail: { incident: IncidentReport };
   P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' } | undefined;
@@ -195,4 +194,3 @@ export type RootStackParamList = {
   P32_StoryModeration: undefined;
   P33_CommunityGuidelines: undefined;
 };
-

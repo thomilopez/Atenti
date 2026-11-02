@@ -4,15 +4,14 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { DraftsListModal } from '../components/DraftsListModal';
-import { AppButton } from '../components/AppButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P7_OfflineModal'>;
 
@@ -35,7 +34,7 @@ export const P7_OfflineModal: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="rgba(0, 0, 0, 0.75)" />
 
       {/* Pantalla P5 oscurecida de fondo */}
@@ -67,23 +66,23 @@ export const P7_OfflineModal: React.FC<Props> = ({ navigation }) => {
 
           {/* Botones del Modal */}
           <View style={styles.actionsGroup}>
-            <AppButton
-              title="Reintentar"
-              onPress={handleRetry}
-              variant="primary"
-              size="md"
-              iconLeft="refresh-outline"
+            {/* Botón "Reintentar" */}
+            <TouchableOpacity
               style={styles.retryBtn}
-            />
+              activeOpacity={0.88}
+              onPress={handleRetry}
+            >
+              <Text style={styles.retryBtnText}>Reintentar</Text>
+            </TouchableOpacity>
 
-            <AppButton
-              title="Ver Mis Borradores"
-              onPress={() => setShowDraftsList(true)}
-              variant="secondary"
-              size="md"
-              iconLeft="folder-outline"
+            {/* Botón "Ver Mis Borradores" */}
+            <TouchableOpacity
               style={styles.draftsBtn}
-            />
+              activeOpacity={0.88}
+              onPress={() => setShowDraftsList(true)}
+            >
+              <Text style={styles.draftsBtnText}>Ver Mis Borradores</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>

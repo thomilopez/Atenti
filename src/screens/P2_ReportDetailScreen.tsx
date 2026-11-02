@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  SafeAreaView,
   Image,
   Modal,
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -118,17 +118,10 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safeArea}>
       {/* Barra de navegación superior */}
       <View style={styles.navBar}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          activeOpacity={0.75}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Detalle de Incidencia</Text>
@@ -272,10 +265,9 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
           style={styles.denounceBtn}
           activeOpacity={0.88}
           onPress={handleDenounceSameTarget}
-          variant="primary"
-          size="lg"
-          iconLeft="alert-circle-outline"
-        />
+        >
+          <Text style={styles.denounceBtnText}>Denunciar mismo objetivo</Text>
+        </TouchableOpacity>
       </View>
 
       <BottomNavBar activeTab="home" />
