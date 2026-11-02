@@ -3,19 +3,13 @@
  * Plataforma colaborativa y geolocalizada de prevención de fraudes en Argentina
  */
 
-export type IdentifierType = 'Alias' | 'CBU' | 'Tel' | 'Local';
+export type IdentifierType = 'Alias' | 'CBU' | 'CUIT' | 'Tel' | 'Local';
 
-export type IncidentCategory =
-  | 'Estafa Bancaria'
-  | 'Phishing / Suplantación'
-  | 'Comercio Virtual Falso'
-  | 'Local Físico Ilícito'
-  | 'Clonación de Identidad'
-  | 'Fraude con Criptoactivos'
-  | 'Robo o Despojo en Vía Pública'
-  | 'Falso Gestor / Trámite'
-  | 'Llamada Extorsiva / Cuento del Tío'
-  | 'Alquiler Fantasma / Inmueble Falso';
+/**
+ * Categoría de incidencia. Es un string para permitir categorías
+ * paramétricas administrables (RF-027/RF-069).
+ */
+export type IncidentCategory = string;
 
 export type VeracityLevel = 'ALTA' | 'SOSPECHOSA' | 'BAJA';
 
@@ -27,6 +21,15 @@ export interface LocationData {
   address: string;
   city?: string;
   province?: string;
+  /** Campos de dirección manual (RF direccion). */
+  calle?: string;
+  numero?: string;
+  localidad?: string;
+  provincia?: string;
+  codigoPostal?: string;
+  referencia?: string;
+  /** true si se obtuvo por geocodificacion; false si es texto sin verificar. */
+  verificada?: boolean;
 }
 
 export interface EvidenceItem {
@@ -39,6 +42,10 @@ export interface EvidenceItem {
   ocrConfidence?: number;
   isMasked?: boolean;
   timestamp: number;
+  /** RF-034: metadatos técnicos leídos del archivo (no se muestran públicamente). */
+  exif?: Record<string, unknown>;
+  size?: number;
+  mimeType?: string;
 }
 
 export interface UserIdentityFactors {
@@ -62,21 +69,9 @@ export interface AuditMetadata {
   clientIp: string;
   platform: 'android' | 'ios' | 'web';
   createdAt: string;
-  /** RNF3: hash criptográfico inmutable de la DDJJ, UID, IP y timestamp */
+  /** RF-082: hash SHA-256 de la DDJJ aceptada. */
   ddjjHash?: string;
-  ddjjAccepted?: boolean;
-  ddjjAcceptedAt?: string;
-  indemnityAccepted?: boolean;
-}
-
-export interface DniOcrResult {
-  extractedDni: string;
-  fullName?: string;
-  gender?: string;
-  tramiteNumber?: string;
-  confidence: number;
-  matched: boolean;
-  documentType: 'DNI_ARG' | 'UNKNOWN';
+  ddjjAceptadaEn?: string;
 }
 
 export interface IncidentReport {
@@ -99,6 +94,8 @@ export interface IncidentReport {
   credibilityBreakdown: CredibilityBreakdown;
   corroborationCount: number;
   audit: AuditMetadata;
+  /** RF-024: borrado lógico; la denuncia deja de ser visible públicamente. */
+  eliminada?: boolean;
   status: 'publicada' | 'en_revision' | 'desestimada';
 }
 
@@ -116,6 +113,36 @@ export interface ReportDraft {
   credibilityScore: number;
 }
 
+export type EstadoRelato = 'EN_REVISION' | 'PUBLICADA' | 'OCULTA';
+
+export interface IdentificadorRelato {
+  tipo: IdentifierType;
+  valor: string;
+  valorNormalizado: string;
+}
+
+export interface Relato {
+  id: string;
+  titulo: string;
+  categoria: string;
+  modusOperandi: string;
+  senalesDeAlerta: string[];
+  identificadores: IdentificadorRelato[];
+  links: string[];
+  fueVictima: boolean;
+  fuente: string;
+  ubicacion?: LocationData;
+  autorUid: string;
+  creadoEn: string;
+  estado: EstadoRelato;
+  moderadoPor?: string;
+  notaModeracion?: string;
+  corroboraciones: number;
+  tags: string[];
+  /** Denormalizado para búsqueda por identificador. */
+  identificadoresNormalizados?: string[];
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -126,17 +153,46 @@ export interface UserProfile {
   dniNumber?: string;
 }
 
+export interface ValidationErrorInfo {
+  field: string;
+  message: string;
+  invalidValue: string;
+}
+
 export type RootStackParamList = {
+  P0_Welcome: undefined;
   P0_Welcome: undefined;
   P1_Home: undefined;
   P2_ReportDetail: { incident: IncidentReport };
-  P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' | 'IdentityUpgrade' } | undefined;
-  P4_CreateReport: { prefilledIdentifier?: { type: IdentifierType; value: string }; draftId?: string } | undefined;
+  P3_LegalAuth: { targetIdentifier?: { type: IdentifierType; value: string }; returnTo?: 'P4_CreateReport' | 'P9_CredibilityPanel' } | undefined;
+  P4_CreateReport: { prefilledIdentifier?: { type: IdentifierType; value: string }; draftId?: string; validationError?: ValidationErrorInfo } | undefined;
   P5_OCRValidation: undefined;
-  P6_ValidationError: { field: string; message: string; invalidValue: string };
   P7_OfflineModal: { draftId?: string } | undefined;
   P8_Confirmation: { trackingCode: string; finalScore: number; incidentId: string };
   P9_CredibilityPanel: undefined;
-  IdentityUpgrade: { factor?: 'phone' | 'dni' } | undefined;
+  P10_MisDenuncias: undefined;
+  P11_TrackingCode: { codigo?: string } | undefined;
+  P12_EditReport: { incident: IncidentReport };
+  P13_SearchResults: { initialQuery?: string; initialType?: IdentifierType } | undefined;
+  P14_AdminDashboard: undefined;
+  P15_AdminDispute: { incident: IncidentReport };
+  P16_AdminCategories: undefined;
+  P17_AdminUsers: undefined;
+  P18_AdminAudit: { incidentId: string };
+  P19_NotificationCenter: undefined;
+  P20_Settings: undefined;
+  P21_Impugnacion: { incident: IncidentReport };
+  P22_DisputeStatus: { denunciaId: string };
+  P23_Legal: undefined;
+  P24_RightToBeForgotten: undefined;
+  P25_AuditLog: undefined;
+  P26_NotificationPreferences: undefined;
+  P31_FullMap: undefined;
+  P27_StoriesFeed: undefined;
+  P28_StoryDetail: { relato: Relato };
+  P29_CreateStory: { draftId?: string } | undefined;
+  P30_MyStories: undefined;
+  P32_StoryModeration: undefined;
+  P33_CommunityGuidelines: undefined;
 };
 

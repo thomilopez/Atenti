@@ -47,9 +47,12 @@ export const P3_LegalAuthScreen: React.FC<Props> = ({ route, navigation }) => {
       } else {
         navigation.goBack();
       }
-    } catch (error) {
+    } catch (error: any) {
       setLoading(false);
-      Alert.alert('Error', 'No se pudo iniciar sesión.');
+      Alert.alert(
+        'No se pudo iniciar sesión',
+        error?.message ?? 'Google Sign-In requiere un development build.'
+      );
     }
   };
 

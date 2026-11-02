@@ -1,165 +1,100 @@
-/**
- * Atenti - Pantalla de Bienvenida (P0_WelcomeScreen)
- * Introducción visual interactiva, validación de sesión y transición fluida hacia el mapa principal o autenticación.
- */
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  Image,
+  TouchableOpacity,
+  Animated,
+  SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { AppButton } from '../components/AppButton';
+import { useResponsive } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P0_Welcome'>;
 
-interface FeaturePillProps {
-  icon: any;
-  iconColor: string;
-  bgColor: string;
-  title: string;
-  description: string;
-}
-
-const FeaturePill: React.FC<FeaturePillProps> = ({
-  icon,
-  iconColor,
-  bgColor,
-  title,
-  description,
-}) => (
-  <View style={styles.featureCard}>
-    <View style={[styles.featureIconContainer, { backgroundColor: bgColor }]}>
-      <Ionicons name={icon} size={22} color={iconColor} />
-    </View>
-    <View style={styles.featureTextContainer}>
-      <Text style={styles.featureTitle} numberOfLines={1}>
-        {title}
-      </Text>
-      <Text style={styles.featureDescription} numberOfLines={2}>
-        {description}
-      </Text>
-    </View>
-  </View>
-);
+const ESLOGAN = 'La comunidad que te avisa antes del fraude.';
 
 export const P0_WelcomeScreen: React.FC<Props> = ({ navigation }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { contentMaxWidth, gutter, isSmall } = useResponsive();
 
-  // Validación de sesión opcional o bienvenida personalizada
-  const handleStartExploring = () => {
-    navigation.replace('P1_Home');
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.9)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, friction: 6, useNativeDriver: true }),
+    ]).start();
+  }, [opacity, scale]);
+
+  const irABuscar = () => navigation.replace('P1_Home');
+
+  const irAReportar = () => {
+    if (isAuthenticated) {
+      navigation.replace('P4_CreateReport');
+    } else {
+      navigation.replace('P3_LegalAuth', { returnTo: 'P4_CreateReport' });
+    }
   };
 
-  const handleGoToAuth = () => {
-    navigation.navigate('P3_LegalAuth');
+  const irAIngresar = () => {
+    if (isAuthenticated) {
+      navigation.replace('P9_CredibilityPanel');
+    } else {
+      navigation.replace('P3_LegalAuth', { returnTo: 'P9_CredibilityPanel' });
+    }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <View style={[styles.container, { paddingHorizontal: gutter }]}>
+        <Animated.View
+          style={[
+            styles.hero,
+            { maxWidth: contentMaxWidth, opacity, transform: [{ scale }] },
+          ]}
+        >
+          <View style={styles.logoCard}>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={[styles.brand, isSmall && styles.brandSmall]}>Atenti</Text>
+          <Text style={styles.slogan}>{ESLOGAN}</Text>
+        </Animated.View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.responsiveContainer}>
-          {/* Encabezado e Isotipo de Marca */}
-          <View style={styles.brandSection}>
-            <View style={styles.logoRing}>
-              <View style={styles.logoInner}>
-                <Ionicons name="shield-checkmark" size={44} color="#0F172A" />
-              </View>
-            </View>
-            <Text style={styles.brandTitle}>Atenti</Text>
-            <Text style={styles.brandTagline}>
-              Red Colaborativa de Prevención de Fraudes
+        <View style={[styles.actions, { maxWidth: contentMaxWidth }]}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={irABuscar} activeOpacity={0.9}>
+            <Ionicons name="search" size={18} color="#0F172A" />
+            <Text style={styles.primaryBtnText}>Buscar antecedentes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryBtn} onPress={irAReportar} activeOpacity={0.9}>
+            <Ionicons name="warning-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.secondaryBtnText}>Reportar una estafa</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.ghostBtn} onPress={irAIngresar} activeOpacity={0.9}>
+            <Ionicons name="person-outline" size={18} color="#CBD5E1" />
+            <Text style={styles.ghostBtnText}>
+              {isAuthenticated ? 'Mi perfil' : 'Ingresar'}
             </Text>
-            <Text style={styles.brandSub}>
-              Detectá, reportá y consultá alertas ciudadanas geolocalizadas con respaldo de evidencias verificadas.
-            </Text>
-          </View>
-
-          {/* Tarjetas informativas de beneficios clave */}
-          <View style={styles.featuresSection}>
-            <FeaturePill
-              icon="map"
-              iconColor="#0284C7"
-              bgColor="#E0F2FE"
-              title="Alertas en el Mapa"
-              description="Visualizá zonas, comercios y números fraudulentos cercanos a tu ubicación en tiempo real."
-            />
-            <FeaturePill
-              icon="analytics"
-              iconColor="#059669"
-              bgColor="#D1FAE5"
-              title="Semáforo de Credibilidad"
-              description="Algoritmo transparente que califica la veracidad con evidencias, DDJJ y corroboración."
-            />
-            <FeaturePill
-              icon="lock-closed"
-              iconColor="#7C3AED"
-              bgColor="#EDE9FE"
-              title="Participación Protegida"
-              description="Protección de identidad y encriptación de datos sensibles bajo protocolos de seguridad."
-            />
-          </View>
-
-          {/* Indicador de estado de sesión si ya está autenticado */}
-          {isAuthenticated && user && (
-            <View style={styles.userBanner}>
-              <Ionicons name="checkmark-circle" size={18} color="#059669" />
-              <Text style={styles.userBannerText} numberOfLines={1}>
-                Sesión activa como: <Text style={styles.userBannerEmail}>{user.displayName || user.email}</Text>
-              </Text>
-            </View>
-          )}
-
-          {/* Botones de acción principales */}
-          <View style={styles.actionSection}>
-            <AppButton
-              title="Explorar Mapa de Alertas"
-              onPress={handleStartExploring}
-              variant="primary"
-              size="lg"
-              iconRight="arrow-forward"
-              style={styles.mainBtn}
-            />
-
-            {!isAuthenticated ? (
-              <AppButton
-                title="Identificarme / Iniciar Sesión"
-                onPress={handleGoToAuth}
-                variant="outline"
-                size="md"
-                iconLeft="person-outline"
-                style={styles.secondaryBtn}
-              />
-            ) : (
-              <AppButton
-                title="Ir a Mi Credibilidad"
-                onPress={() => navigation.navigate('P9_CredibilityPanel')}
-                variant="secondary"
-                size="md"
-                iconLeft="shield-outline"
-                style={styles.secondaryBtn}
-              />
-            )}
-          </View>
-
-          {/* Pie legal mínimo */}
-          <Text style={styles.footerNote}>
-            Al continuar aceptás los términos de uso y la política de privacidad de la red Atenti.
-          </Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+
+        <Text style={styles.footer}>
+          Alerta ciudadana colaborativa · Argentina
+        </Text>
+      </View>
     </SafeAreaView>
   );
 };
@@ -167,137 +102,105 @@ export const P0_WelcomeScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0F172A',
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-  },
-  responsiveContainer: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-  },
-  brandSection: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  logoRing: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-  },
-  logoInner: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  brandTitle: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: '#0F172A',
-    letterSpacing: -0.5,
-    marginBottom: 6,
-  },
-  brandTagline: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#2563EB',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  brandSub: {
-    fontSize: 13,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 340,
-  },
-  featuresSection: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  featureCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 12,
-  },
-  featureIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureTextContainer: {
+  container: {
     flex: 1,
-  },
-  featureTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  featureDescription: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 16,
-  },
-  userBanner: {
-    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    justifyContent: 'space-between',
+    paddingVertical: 40,
+  },
+  hero: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  logoCard: {
+    width: 104,
+    height: 104,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 20,
-    gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  userBannerText: {
-    fontSize: 12,
-    color: '#065F46',
-    flexShrink: 1,
+  logo: {
+    width: 72,
+    height: 72,
   },
-  userBannerEmail: {
-    fontWeight: '700',
+  brand: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -1,
   },
-  actionSection: {
+  brandSmall: {
+    fontSize: 34,
+  },
+  slogan: {
+    fontSize: 15,
+    color: '#CBD5E1',
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: 280,
+    lineHeight: 22,
+  },
+  actions: {
+    width: '100%',
     gap: 12,
     marginBottom: 16,
   },
-  mainBtn: {
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
+  primaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingVertical: 15,
   },
-  secondaryBtn: {},
-  footerNote: {
+  primaryBtnText: {
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  secondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    paddingVertical: 15,
+  },
+  secondaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  ghostBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 10,
+    paddingVertical: 13,
+  },
+  ghostBtnText: {
+    color: '#CBD5E1',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  footer: {
     fontSize: 11,
-    color: '#94A3B8',
-    textAlign: 'center',
-    lineHeight: 15,
+    color: '#64748B',
+    fontWeight: '600',
   },
 });

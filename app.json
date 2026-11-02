@@ -13,12 +13,16 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.atenti.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Atenti necesita tu ubicación para reportar y visualizar alertas de fraudes cercanos.",
-        "NSPhotoLibraryUsageDescription": "Permite adjuntar capturas y comprobantes como evidencia del reporte."
+        "NSPhotoLibraryUsageDescription": "Permite adjuntar capturas y comprobantes como evidencia del reporte.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "atenti.android",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#0F172A",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -40,6 +44,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "extra": {
+      "eas": {
+        "projectId": "9df2fa5e-9519-4896-be9c-68243f75f71b"
+      }
+    },
     "plugins": [
       "expo-font",
       [
@@ -51,20 +60,9 @@
           "resizeMode": "contain"
         }
       ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Atenti necesita tu ubicación para reportar y visualizar alertas de fraudes cercanos."
-        }
-      ],
-      [
-        "react-native-maps",
-        {
-          "androidGoogleMapsApiKey": "AIzaSy_ATENTI_ANDROID_MAPS_KEY"
-        }
-      ],
-      "expo-status-bar",
-      "expo-web-browser"
-    ]
+      "@react-native-google-signin/google-signin",
+      "expo-sharing"
+    ],
+    "owner": "atenti"
   }
 }

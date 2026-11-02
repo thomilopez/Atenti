@@ -1,0 +1,11 @@
+appId: atenti.android
+---
+- launchApp
+- assertVisible: "Atenti"
+- assertVisible: "Buscar antecedentes"
+- tapOn: "Buscar antecedentes"
+- assertVisible: "¿A quién querés chequear?"
+- tapOn: "Ej: ju.mp, 0000003100084729103829..."
+- inputText: "ju.mp"
+- tapOn: "Buscar"
+- assertVisible: "Resultados"

@@ -1,37 +1,40 @@
 import React, { useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
+import { ConnectivityProvider } from './src/context/ConnectivityContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { ReportFlowProvider } from './src/context/ReportFlowContext';
+import { OfflineBanner } from './src/components/OfflineBanner';
 import { AppNavigator } from './src/navigation/AppNavigator';
-
-// Mantener la pantalla de splash visible hasta que la app esté lista
-SplashScreen.preventAutoHideAsync().catch(() => {
-  /* ignora si ya está oculta o no soportado */
-});
+import { inicializarObservabilidad } from './src/services/observability';
+import { configurarNotificaciones } from './src/services/pushService';
 
 export default function App() {
   useEffect(() => {
-    // Ocultar la pantalla de bienvenida nativa tras la inicialización
-    const hideSplash = async () => {
-      try {
-        await SplashScreen.hideAsync();
-      } catch (e) {
-        // En web o entornos simulados
-      }
-    };
-    hideSplash();
+    inicializarObservabilidad();
+    configurarNotificaciones();
   }, []);
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <ReportFlowProvider>
-          <AppNavigator />
-          <StatusBar style="dark" />
-        </ReportFlowProvider>
-      </AuthProvider>
+      <ConnectivityProvider>
+        <AuthProvider>
+          <ReportFlowProvider>
+            <View style={styles.root}>
+              <OfflineBanner />
+              <AppNavigator />
+            </View>
+            <StatusBar style="dark" />
+          </ReportFlowProvider>
+        </AuthProvider>
+      </ConnectivityProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

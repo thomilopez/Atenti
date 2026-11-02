@@ -8,7 +8,7 @@ import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 interface BottomNavBarProps {
-  activeTab?: 'home' | 'map' | 'report' | 'profile';
+  activeTab?: 'home' | 'map' | 'report' | 'stories' | 'profile';
 }
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }) => {
@@ -27,105 +27,71 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
   };
 
   return (
-    <View
-      style={[
-        styles.wrapper,
-        { paddingBottom: Math.max(insets.bottom, 8) },
-      ]}
-    >
-      <View style={styles.container}>
-        <TouchableOpacity
-          style={styles.tabItem}
-          activeOpacity={0.75}
-          hitSlop={hitSlop}
-          onPress={() => navigation.navigate('P1_Home')}
-          accessibilityRole="button"
-          accessibilityLabel="Inicio"
-        >
-          <Ionicons
-            name={activeTab === 'home' ? 'grid' : 'grid-outline'}
-            size={22}
-            color={activeTab === 'home' ? '#0F172A' : '#94A3B8'}
-          />
-          <Text
-            style={[
-              styles.tabLabel,
-              activeTab === 'home' && styles.tabLabelActive,
-            ]}
-          >
-            Inicio
-          </Text>
-        </TouchableOpacity>
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.tabItem}
+        onPress={() => navigation.navigate('P1_Home')}
+        accessibilityRole="button"
+        accessibilityLabel="Inicio"
+      >
+        <Ionicons
+          name={activeTab === 'home' ? 'grid' : 'grid-outline'}
+          size={22}
+          color={activeTab === 'home' ? '#000000' : '#94A3B8'}
+        />
+      </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.tabItem}
-          activeOpacity={0.75}
-          hitSlop={hitSlop}
-          onPress={() => navigation.navigate('P1_Home')}
-          accessibilityRole="button"
-          accessibilityLabel="Mapa"
-        >
-          <Ionicons
-            name={activeTab === 'map' ? 'map' : 'map-outline'}
-            size={22}
-            color={activeTab === 'map' ? '#0F172A' : '#94A3B8'}
-          />
-          <Text
-            style={[
-              styles.tabLabel,
-              activeTab === 'map' && styles.tabLabelActive,
-            ]}
-          >
-            Mapa
-          </Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.tabItem}
+        onPress={() => navigation.navigate('P31_FullMap')}
+        accessibilityRole="button"
+        accessibilityLabel="Mapa de denuncias"
+      >
+        <Ionicons
+          name={activeTab === 'map' ? 'map' : 'map-outline'}
+          size={22}
+          color={activeTab === 'map' ? '#000000' : '#94A3B8'}
+        />
+      </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.tabItem}
-          activeOpacity={0.75}
-          hitSlop={hitSlop}
-          onPress={handleReportPress}
-          accessibilityRole="button"
-          accessibilityLabel="Reportar"
-        >
-          <Ionicons
-            name={activeTab === 'report' ? 'add-circle' : 'add-circle-outline'}
-            size={24}
-            color={activeTab === 'report' ? '#0F172A' : '#94A3B8'}
-          />
-          <Text
-            style={[
-              styles.tabLabel,
-              activeTab === 'report' && styles.tabLabelActive,
-            ]}
-          >
-            Reportar
-          </Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.tabItem}
+        onPress={() => navigation.navigate('P4_CreateReport')}
+        accessibilityRole="button"
+        accessibilityLabel="Crear reporte"
+      >
+        <Ionicons
+          name={activeTab === 'report' ? 'add-circle' : 'add-circle-outline'}
+          size={24}
+          color={activeTab === 'report' ? '#000000' : '#94A3B8'}
+        />
+      </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.tabItem}
-          activeOpacity={0.75}
-          hitSlop={hitSlop}
-          onPress={() => navigation.navigate('P9_CredibilityPanel')}
-          accessibilityRole="button"
-          accessibilityLabel="Perfil"
-        >
-          <Ionicons
-            name={activeTab === 'profile' ? 'person' : 'person-outline'}
-            size={22}
-            color={activeTab === 'profile' ? '#0F172A' : '#94A3B8'}
-          />
-          <Text
-            style={[
-              styles.tabLabel,
-              activeTab === 'profile' && styles.tabLabelActive,
-            ]}
-          >
-            Perfil
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.tabItem}
+        onPress={() => navigation.navigate('P27_StoriesFeed')}
+        accessibilityRole="button"
+        accessibilityLabel="Historias de estafas"
+      >
+        <Ionicons
+          name={activeTab === 'stories' ? 'newspaper' : 'newspaper-outline'}
+          size={22}
+          color={activeTab === 'stories' ? '#000000' : '#94A3B8'}
+        />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.tabItem}
+        onPress={() => navigation.navigate('P9_CredibilityPanel')}
+        accessibilityRole="button"
+        accessibilityLabel="Mi credibilidad"
+      >
+        <Ionicons
+          name={activeTab === 'profile' ? 'person' : 'person-outline'}
+          size={22}
+          color={activeTab === 'profile' ? '#000000' : '#94A3B8'}
+        />
+      </TouchableOpacity>
     </View>
   );
 };

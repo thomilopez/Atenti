@@ -13,9 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, CredibilityBreakdown } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { VeracityBar } from '../components/VeracityBar';
+import { ScoreBreakdown } from '../components/ScoreBreakdown';
 import { BottomNavBar } from '../components/BottomNavBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P9_CredibilityPanel'>;
@@ -27,32 +28,58 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
     identityFactors,
     logout,
     calculateMyIdentityScore,
+    dniEstado,
   } = useAuth();
 
   const identityScore = calculateMyIdentityScore();
   // Score total simulado acumulado con evidencias
   const totalCredibility = Math.min(100, identityScore + 45 + 15);
 
+  const identityBreakdown: CredibilityBreakdown = {
+    identityScore,
+    evidenceScore: 0,
+    corroborationScore: 0,
+    totalScore: identityScore,
+    level: identityScore >= 75 ? 'ALTA' : identityScore >= 40 ? 'SOSPECHOSA' : 'BAJA',
+    trafficLight: identityScore >= 75 ? 'green' : identityScore >= 40 ? 'yellow' : 'red',
+  };
+
+  const handleConfirmPhone = async () => {
+    setPhoneLoading(true);
+    await verifyPhone('+54 9 11 4455-8899', `${digit1}${digit2}${digit3}${digit4}`);
+    setPhoneLoading(false);
+    setPhoneModalVisible(false);
+    Alert.alert('¡Verificado!', 'Se han sumado +15% a tu nivel de credibilidad.');
+  };
+
+  const handleConfirmDNI = async () => {
+    setDniLoading(true);
+    const resultado = await verifyDNI(dniInput);
+    setDniLoading(false);
+    setDniModalVisible(false);
+    if (resultado.estado === 'verificado') {
+      Alert.alert('¡Verificado!', 'Se han sumado +10% a tu nivel de credibilidad.');
+    } else if (resultado.estado === 'verificando') {
+      Alert.alert('Verificando', resultado.mensaje);
+    } else {
+      Alert.alert('No verificado', resultado.mensaje);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Cabecera: Credibilidad y Sesión */}
       <View style={styles.topHeader}>
+        <View style={{ width: 36 }} />
         <View style={styles.credibilityPill}>
           <Text style={styles.credibilityPillText}>Credibilidad ({identityScore}/40 pts)</Text>
         </View>
-
-        {isAuthenticated && (
-          <TouchableOpacity
-            style={styles.logoutBtn}
-            onPress={async () => {
-              await logout();
-              Alert.alert('Sesión Cerrada', 'Has vuelto al modo anónimo (U0).');
-            }}
-          >
-            <Ionicons name="log-out-outline" size={16} color="#EF4444" />
-            <Text style={styles.logoutBtnText}>Salir</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('P20_Settings')}
+          style={styles.settingsBtn}
+        >
+          <Ionicons name="settings-outline" size={22} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -129,6 +156,11 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
               <View style={styles.checkBadge}>
                 <Ionicons name="checkmark" size={16} color="#000000" />
               </View>
+            ) : dniEstado === 'verificando' ? (
+              <View style={styles.pendingBadge}>
+                <ActivityIndicator size="small" color="#0F172A" />
+                <Text style={styles.pendingBadgeText}>Verificando</Text>
+              </View>
             ) : (
               <TouchableOpacity
                 style={styles.verifyButton}
@@ -138,6 +170,10 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
               </TouchableOpacity>
             )}
           </View>
+        </View>
+
+        <View style={styles.breakdownSection}>
+          <ScoreBreakdown breakdown={identityBreakdown} />
         </View>
 
         {/* Abajo: Un gráfico de torta simple o líneas simulando la explicación de la fórmula */}
@@ -194,13 +230,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   topHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  settingsBtn: {
+    padding: 4,
   },
   credibilityPill: {
     backgroundColor: '#F1F5F9',
@@ -284,7 +323,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  pendingBadgeText: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   // Abajo: Un gráfico de torta simple o líneas simulando la explicación de la fórmula
+  breakdownSection: {
+    marginBottom: 16,
+  },
   formulaSection: {
     paddingTop: 8,
   },

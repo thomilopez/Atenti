@@ -1,6 +1,7 @@
 /**
  * Contexto Global de Autenticación e Identidad (Atenti)
- * Gestión de sesión Firebase Auth / Google y estados de verificación de identidad para RG-07 (T05 / T07)
+ * Gestiona la sesión real de Firebase Auth / Google y los estados de
+ * verificación de identidad para RG-07.
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -16,179 +17,100 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import { auth } from '../services/firebase';
 import { UserIdentityFactors, UserProfile } from '../types';
-
-WebBrowser.maybeCompleteAuthSession();
-
-const AUTH_STORAGE_KEY = '@atenti_auth_profile_v1';
+import { env, hasRealFirebaseConfig } from '../services/env';
+import {
+  authService,
+  SesionUsuario,
+  EstadoDNI,
+  ResultadoVerificacionDNI,
+  logout as cerrarSesion,
+} from '../services/authService';
+import { registrarTokenPush } from '../services/pushService';
 
 interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
+  /** Acceso temporal al panel admin (RF-015 pendiente). */
+  isAdmin: boolean;
   identityFactors: UserIdentityFactors;
-  loading: boolean;
-  loginWithGoogle: (mockEmail?: string) => Promise<void>;
+  dniEstado: EstadoDNI;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   verifyPhone: (phoneNumber: string, code: string) => Promise<boolean>;
-  verifyDNI: (dniNumber: string, metadata?: { fullName?: string; tramite?: string }) => Promise<boolean>;
+  verifyDNI: (dniNumber: string) => Promise<ResultadoVerificacionDNI>;
   calculateMyIdentityScore: () => number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const FACTORES_VACIOS: UserIdentityFactors = {
+  googleAuth: false,
+  phoneVerified: false,
+  dniVerified: false,
+};
+
+function aPerfil(sesion: SesionUsuario): UserProfile {
+  return {
+    uid: sesion.uid,
+    email: sesion.email,
+    displayName: sesion.displayName,
+    photoURL: sesion.photoURL,
+    phoneNumber: sesion.phoneNumber,
+    identityFactors: { ...FACTORES_VACIOS, googleAuth: true },
+  };
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  // T05: Logout inicial null (U0 - visitante anónimo no autenticado)
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [dniEstado, setDniEstado] = useState<EstadoDNI>('verificando');
 
-  // Carga inicial y persistencia de sesión
-  useEffect(() => {
-    let isMounted = true;
+  const identityFactors = user?.identityFactors || FACTORES_VACIOS;
 
-    const restoreSession = async () => {
-      try {
-        const storedProfile = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-        if (storedProfile && isMounted) {
-          setUser(JSON.parse(storedProfile));
-        }
-      } catch (err) {
-        console.warn('Error restaurando sesión local:', err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
+  // En modo demo el panel admin está abierto para poder probar; con Firebase
+  // real solo lo ven los emails configurados (roles formales: RF-015).
+  const isAdmin = !hasRealFirebaseConfig()
+    ? true
+    : Boolean(user?.email && env.adminEmails.includes(user.email.toLowerCase()));
 
-    restoreSession();
-
-    // Listener reactivo de Firebase Auth para persistencia nativa
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      if (!isMounted) return;
-      if (fbUser) {
-        // Si hay usuario en Firebase Auth, sincronizamos con el perfil local
-        setUser((prev) => {
-          const profile: UserProfile = {
-            uid: fbUser.uid,
-            email: fbUser.email || 'usuario.atenti@gmail.com',
-            displayName: fbUser.displayName || 'Usuario Atenti',
-            photoURL: fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-            phoneNumber: prev?.phoneNumber || fbUser.phoneNumber || undefined,
-            dniNumber: prev?.dniNumber || undefined,
-            identityFactors: {
-              googleAuth: true,
-              phoneVerified: prev?.identityFactors?.phoneVerified || false,
-              dniVerified: prev?.identityFactors?.dniVerified || false,
-            },
-          };
-          AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile)).catch(() => {});
-          return profile;
-        });
-      }
-    });
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  const identityFactors: UserIdentityFactors = user?.identityFactors || {
-    googleAuth: false,
-    phoneVerified: false,
-    dniVerified: false,
+  const loginWithGoogle = async () => {
+    const sesion = await authService.signInWithGoogle();
+    setUser(aPerfil(sesion));
+    // RF-077: registrar el token de push del dispositivo para el usuario.
+    registrarTokenPush(sesion.uid).catch(() => {});
   };
 
-  /**
-   * T05: Google Sign-In real con persistencia
-   * Soporta credenciales reales de Google vía Firebase y fallback resiliente para simulador / pruebas
-   */
-  const loginWithGoogle = async (customEmail?: string) => {
-    try {
-      const email = customEmail || 'usuario.verificado@gmail.com';
-      const uid = `usr_google_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
-      const newUser: UserProfile = {
-        uid,
-        email,
-        displayName: email.split('@')[0].replace('.', ' ').toUpperCase(),
-        photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200',
-        identityFactors: {
-          googleAuth: true,
-          phoneVerified: false,
-          dniVerified: false,
-        },
-      };
-
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
-      setUser(newUser);
-    } catch (error) {
-      console.error('Error en Google Sign-In:', error);
-      throw error;
-    }
-  };
-
-  /**
-   * T05: Logout explícito — restablece usuario a null y borra persistencia
-   */
   const logout = async () => {
-    try {
-      await signOut(auth).catch(() => {});
-    } finally {
-      await AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
-      setUser(null);
-    }
+    await cerrarSesion();
+    setUser(null);
+    setDniEstado('verificando');
   };
 
   /**
    * T07: Verificación de teléfono progresiva (SMS OTP +15 pts)
    */
   const verifyPhone = async (phoneNumber: string, code: string): Promise<boolean> => {
-    // Simula validación de OTP de 6 dígitos
-    const cleanCode = code.trim();
-    if (cleanCode.length < 4) {
-      return false;
-    }
-
-    if (user) {
-      const updated: UserProfile = {
+    const ok = await authService.verifyPhone(phoneNumber, code);
+    if (user && ok) {
+      setUser({
         ...user,
         phoneNumber,
-        identityFactors: {
-          ...user.identityFactors,
-          phoneVerified: true,
-        },
-      };
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
-      setUser(updated);
-      return true;
+        identityFactors: { ...user.identityFactors, phoneVerified: true },
+      });
     }
-    return false;
+    return ok;
   };
 
-  /**
-   * T07: Verificación de DNI progresiva (OCR de documento +10 pts)
-   */
-  const verifyDNI = async (
-    dniNumber: string,
-    metadata?: { fullName?: string; tramite?: string }
-  ): Promise<boolean> => {
-    const cleanDni = dniNumber.replace(/\D/g, '');
-    if (cleanDni.length < 7 || cleanDni.length > 8) {
-      return false;
-    }
-
-    if (user) {
-      const updated: UserProfile = {
+  const verifyDNI = async (dniNumber: string): Promise<ResultadoVerificacionDNI> => {
+    const resultado = await authService.verifyDNI(dniNumber);
+    setDniEstado(resultado.estado);
+    if (user && resultado.estado === 'verificado') {
+      setUser({
         ...user,
-        dniNumber: cleanDni,
-        displayName: metadata?.fullName || user.displayName,
-        identityFactors: {
-          ...user.identityFactors,
-          dniVerified: true,
-        },
-      };
-      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updated)).catch(() => {});
-      setUser(updated);
-      return true;
+        dniNumber,
+        identityFactors: { ...user.identityFactors, dniVerified: true },
+      });
     }
-    return false;
+    return resultado;
   };
 
   /**
@@ -207,9 +129,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user && !!user.identityFactors.googleAuth,
+        isAuthenticated: !!user && user.identityFactors.googleAuth,
+        isAdmin,
         identityFactors,
-        loading,
+        dniEstado,
         loginWithGoogle,
         logout,
         verifyPhone,

@@ -1,157 +1,114 @@
 /**
- * Atenti - Servicio de Geolocalización (expo-location)
- * Solicitud de permisos en tiempo de ejecución, obtención de coordenadas actuales y fallbacks seguros.
+ * Servicio de geolocalización (RF-037, RF-038 y dirección manual).
+ *
+ * Usa expo-location para obtener la ubicación del dispositivo, convertir
+ * coordenadas en una dirección y convertir una dirección escrita en
+ * coordenadas. Maneja permisos denegados y errores sin romper el flujo.
  */
-
 import * as Location from 'expo-location';
 import { LocationData } from '../types';
 
-export const DEFAULT_BUENOS_AIRES_LOCATION: LocationData = {
-  latitude: -34.6037,
-  longitude: -58.3816,
-  address: 'CABA, Buenos Aires, Argentina',
-  city: 'Ciudad Autónoma de Buenos Aires',
-  province: 'Buenos Aires',
-};
-
-export interface LocationPermissionResult {
-  granted: boolean;
-  canAskAgain: boolean;
-  status: Location.PermissionStatus;
+export interface Coordenadas {
+  latitude: number;
+  longitude: number;
 }
 
-/**
- * Solicita permisos de ubicación en primer plano de manera amigable.
- */
-export const requestLocationPermissions = async (): Promise<LocationPermissionResult> => {
+/** Pide permiso y devuelve la ubicación actual, o null si no se puede. */
+export async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
   try {
-    const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return null;
+    const posicion = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
     return {
-      granted: status === Location.PermissionStatus.GRANTED,
-      canAskAgain,
-      status,
+      latitude: posicion.coords.latitude,
+      longitude: posicion.coords.longitude,
     };
-  } catch (error) {
-    console.warn('Error solicitando permisos de ubicación:', error);
-    return {
-      granted: false,
-      canAskAgain: true,
-      status: Location.PermissionStatus.DENIED,
-    };
+  } catch (e) {
+    console.warn('obtenerUbicacionActual:', e);
+    return null;
   }
-};
+}
 
-/**
- * Verifica el estado actual de los permisos de ubicación sin solicitarlos si no se desea.
- */
-export const checkLocationPermissions = async (): Promise<boolean> => {
+/** Convierte coordenadas en dirección postal (geocodificación inversa). */
+export async function geocodificarInverso(
+  coords: Coordenadas
+): Promise<Partial<LocationData> | null> {
   try {
-    const { status } = await Location.getForegroundPermissionsAsync();
-    return status === Location.PermissionStatus.GRANTED;
-  } catch (error) {
-    console.warn('Error verificando permisos de ubicación:', error);
-    return false;
+    const resultados = await Location.reverseGeocodeAsync(coords);
+    const r = resultados[0];
+    if (!r) return null;
+    const partes = [r.street, r.streetNumber, r.district ?? r.subregion, r.city].filter(
+      Boolean
+    );
+    return {
+      address:
+        partes.length > 0
+          ? partes.join(', ')
+          : `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`,
+      calle: r.street ?? undefined,
+      numero: r.streetNumber ?? undefined,
+      localidad: r.city ?? r.subregion ?? undefined,
+      provincia: r.region ?? undefined,
+      codigoPostal: r.postalCode ?? undefined,
+      city: r.city ?? undefined,
+      province: r.region ?? undefined,
+    };
+  } catch (e) {
+    console.warn('geocodificarInverso:', e);
+    return null;
   }
-};
+}
 
-/**
- * Función auxiliar para limitar el tiempo de espera de una promesa.
- */
-const withTimeout = <T>(promise: Promise<T>, ms: number, timeoutErrorMsg: string): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(timeoutErrorMsg)), ms)
-    ),
-  ]);
-};
+/** Combina coordenadas + dirección en un `LocationData` verificado. */
+export async function ubicacionConDireccion(coords: Coordenadas): Promise<LocationData> {
+  const geo = await geocodificarInverso(coords);
+  return {
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+    address:
+      geo?.address ??
+      `Punto fijado (${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)})`,
+    calle: geo?.calle,
+    numero: geo?.numero,
+    localidad: geo?.localidad,
+    provincia: geo?.provincia,
+    codigoPostal: geo?.codigoPostal,
+    city: geo?.city,
+    province: geo?.province,
+    verificada: Boolean(geo),
+  };
+}
 
-/**
- * Obtiene la ubicación actual del usuario con reverse geocoding amigable.
- * Si falla o se rechaza el permiso, retorna las coordenadas predeterminadas de CABA.
- */
-export const getCurrentUserLocation = async (): Promise<{
-  location: LocationData;
-  isRealLocation: boolean;
-}> => {
+/** Convierte una dirección escrita en coordenadas (geocodificación directa). */
+export async function geocodificarDireccion(
+  direccion: string
+): Promise<LocationData | null> {
+  const texto = direccion.trim();
+  if (!texto) return null;
   try {
-    const permission = await requestLocationPermissions();
-    if (!permission.granted) {
-      return {
-        location: DEFAULT_BUENOS_AIRES_LOCATION,
-        isRealLocation: false,
-      };
-    }
-
-    // Intentar primero obtener la última posición conocida (rápida, sin esperar sincronización de satélites)
-    let coords: { latitude: number; longitude: number } | null = null;
-    try {
-      const lastKnown = await Location.getLastKnownPositionAsync();
-      if (lastKnown && lastKnown.coords) {
-        coords = {
-          latitude: lastKnown.coords.latitude,
-          longitude: lastKnown.coords.longitude,
-        };
-      }
-    } catch {
-      // Continuar con getCurrentPositionAsync si falla
-    }
-
-    // Si no había posición conocida o para actualizar, obtener la actual con timeout de 4 segundos
-    if (!coords) {
-      const currentPos = await withTimeout(
-        Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        }),
-        4000,
-        'Timeout obteniendo posición actual'
-      );
-      coords = {
-        latitude: currentPos.coords.latitude,
-        longitude: currentPos.coords.longitude,
-      };
-    }
-
-    const { latitude, longitude } = coords;
-
-    let address = `Ubicación actual (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-    let city = 'Ubicación actual';
-    let province = '';
-
-    try {
-      // Reverse geocoding con timeout de 3 segundos para evitar bloqueos de red
-      const reverse = await withTimeout(
-        Location.reverseGeocodeAsync({ latitude, longitude }),
-        3000,
-        'Timeout en geocodificación inversa'
-      );
-      if (reverse && reverse.length > 0) {
-        const item = reverse[0];
-        const street = item.street ? `${item.street} ${item.streetNumber || ''}`.trim() : '';
-        const district = item.district || item.subregion || '';
-        city = item.city || item.subregion || 'CABA';
-        province = item.region || '';
-        address = [street, district, city].filter(Boolean).join(', ') || address;
-      }
-    } catch {
-      // Si el geocoding inverso falla o expira por red, conservamos la dirección con coordenadas
-    }
-
+    const resultados = await Location.geocodeAsync(texto);
+    const r = resultados[0];
+    if (!r) return null;
+    const base = await ubicacionConDireccion({
+      latitude: r.latitude,
+      longitude: r.longitude,
+    });
     return {
-      location: {
-        latitude,
-        longitude,
-        address,
-        city,
-        province,
-      },
-      isRealLocation: true,
+      ...base,
+      address: texto,
+      verificada: true,
     };
-  } catch (error) {
-    console.warn('No se pudo obtener la posición actual, usando fallback:', error);
-    return {
-      location: DEFAULT_BUENOS_AIRES_LOCATION,
-      isRealLocation: false,
-    };
+  } catch (e) {
+    console.warn('geocodificarDireccion:', e);
+    return null;
   }
-};
+}
+
+/** Compone la dirección legible a partir de los campos. */
+export function componerDireccion(loc: LocationData): string {
+  const calleNumero = [loc.calle, loc.numero].filter(Boolean).join(' ');
+  const partes = [calleNumero, loc.localidad, loc.provincia, loc.codigoPostal].filter(Boolean);
+  return partes.length > 0 ? partes.join(', ') : loc.address;
+}

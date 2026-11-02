@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Platform,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { IncidentReport, LocationData } from '../types';
@@ -24,8 +23,14 @@ interface MapViewWrapperProps {
   interactive?: boolean;
   centerLatitude?: number;
   centerLongitude?: number;
-  autoLocateUser?: boolean;
-  showRecenterButton?: boolean;
+  /** RF-036: permite arrastrar el pin seleccionado. */
+  draggablePin?: boolean;
+  /** RF-039: radio de búsqueda en kilómetros. */
+  radioKm?: number;
+  /** Centro del círculo de radio. */
+  radioCenter?: { latitude: number; longitude: number };
+  /** RF-041: capa de mapa de calor. */
+  showHeatmap?: boolean;
 }
 
 // Error Boundary para capturar fallos nativos de react-native-maps y degradar gracefully
@@ -63,17 +68,48 @@ class MapErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundary
 // Carga condicional de react-native-maps para plataformas móviles
 let NativeMapView: any = null;
 let NativeMarker: any = null;
-let NativeProviderGoogle: any = null;
+let NativeCircle: any = null;
+let NativeHeatmap: any = null;
 
 if (Platform.OS !== 'web') {
   try {
     const Maps = require('react-native-maps');
     NativeMapView = Maps.default || Maps;
     NativeMarker = Maps.Marker;
-    NativeProviderGoogle = Maps.PROVIDER_GOOGLE;
+    NativeCircle = Maps.Circle;
+    NativeHeatmap = Maps.Heatmap;
   } catch (err) {
-    console.warn('react-native-maps no disponible en este entorno:', err);
+    console.warn('react-native-maps no disponible nativamente:', err);
   }
+}
+
+interface Cluster {
+  key: string;
+  latitude: number;
+  longitude: number;
+  items: IncidentReport[];
+}
+
+/** Agrupa pines cercanos por celda de grilla (RF-035). */
+function agruparIncidentes(incidents: IncidentReport[], grid = 0.02): Cluster[] {
+  const mapa = new Map<string, Cluster>();
+  for (const inc of incidents) {
+    const key = `${Math.floor(inc.location.latitude / grid)}_${Math.floor(
+      inc.location.longitude / grid
+    )}`;
+    const existente = mapa.get(key);
+    if (existente) {
+      existente.items.push(inc);
+    } else {
+      mapa.set(key, {
+        key,
+        latitude: inc.location.latitude,
+        longitude: inc.location.longitude,
+        items: [inc],
+      });
+    }
+  }
+  return Array.from(mapa.values());
 }
 
 export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
@@ -83,72 +119,148 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
   onMarkerPress,
   style,
   interactive = true,
-  centerLatitude = DEFAULT_BUENOS_AIRES_LOCATION.latitude,
-  centerLongitude = DEFAULT_BUENOS_AIRES_LOCATION.longitude,
-  autoLocateUser = true,
-  showRecenterButton = true,
+  centerLatitude = -34.6037,
+  centerLongitude = -58.3816,
+  draggablePin = false,
+  radioKm,
+  radioCenter,
+  showHeatmap = false,
 }) => {
   const mapRef = useRef<any>(null);
   const [activeIncident, setActiveIncident] = useState<IncidentReport | null>(null);
-  const [userLocation, setUserLocation] = useState<LocationData | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
-  const [isMapReady, setIsMapReady] = useState(false);
-  const [currentRegion, setCurrentRegion] = useState({
-    latitude: centerLatitude,
-    longitude: centerLongitude,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  });
+  const mapRef = useRef<any>(null);
 
-  // Temporizador de seguridad: si onMapReady no dispara en 2 segundos (común en emuladores o Android),
-  // liberamos el overlay de carga para asegurar que el mapa y los controles sean visibles e interactivos.
+  // Reciente el mapa cuando cambia el centro (por ejemplo, "Mi ubicación").
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsMapReady(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Localizar al usuario al montar el componente
-  useEffect(() => {
-    let isMounted = true;
-    if (autoLocateUser) {
-      locateUser(false);
+    if (Platform.OS !== 'web' && mapRef.current?.animateToRegion) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: centerLatitude,
+          longitude: centerLongitude,
+          latitudeDelta: 0.08,
+          longitudeDelta: 0.08,
+        },
+        500
+      );
     }
-    return () => {
-      isMounted = false;
-    };
-  }, [autoLocateUser]);
+  }, [centerLatitude, centerLongitude]);
 
-  const locateUser = async (animate = true) => {
-    setIsLocating(true);
-    try {
-      const { location, isRealLocation } = await getCurrentUserLocation();
-      setUserLocation(location);
+  // Si estamos en entorno móvil nativo y la librería está cargada
+  if (Platform.OS !== 'web' && NativeMapView && NativeMarker) {
+    const clusters = agruparIncidentes(incidents);
+    const circuloCentro = radioCenter ?? { latitude: centerLatitude, longitude: centerLongitude };
 
-      const targetRegion = {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      };
+    return (
+      <View style={[styles.container, style]}>
+        <NativeMapView
+          ref={mapRef}
+          style={StyleSheet.absoluteFill}
+          initialRegion={{
+            latitude: centerLatitude,
+            longitude: centerLongitude,
+            latitudeDelta: 0.08,
+            longitudeDelta: 0.08,
+          }}
+          scrollEnabled={interactive}
+          zoomEnabled={interactive}
+          onPress={(e: any) => {
+            if (onSelectLocation && e.nativeEvent?.coordinate) {
+              const { latitude, longitude } = e.nativeEvent.coordinate;
+              onSelectLocation({
+                latitude,
+                longitude,
+                address: `Punto fijado (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+              });
+            }
+          }}
+        >
+          {showHeatmap && NativeHeatmap && incidents.length > 0 && (
+            <NativeHeatmap
+              points={incidents.map((inc) => ({
+                latitude: inc.location.latitude,
+                longitude: inc.location.longitude,
+                weight: Math.max(1, Math.round(inc.credibilityScore / 20)),
+              }))}
+              radius={40}
+              opacity={0.6}
+            />
+          )}
 
-      setCurrentRegion(targetRegion);
+          {typeof radioKm === 'number' && radioKm > 0 && NativeCircle && (
+            <NativeCircle
+              center={circuloCentro}
+              radius={radioKm * 1000}
+              strokeColor="rgba(37, 99, 235, 0.6)"
+              fillColor="rgba(37, 99, 235, 0.12)"
+            />
+          )}
 
-      if (animate && mapRef.current) {
-        if (typeof mapRef.current.animateToRegion === 'function') {
-          mapRef.current.animateToRegion(targetRegion, 800);
-        }
-      }
-    } catch (error) {
-      console.warn('Error al centrar en ubicación del usuario:', error);
-    } finally {
-      setIsLocating(false);
-    }
-  };
+          {clusters.map((cluster) => {
+            if (cluster.items.length > 1) {
+              return (
+                <NativeMarker
+                  key={cluster.key}
+                  coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
+                  onPress={() => {
+                    const primero = cluster.items[0];
+                    setActiveIncident(primero);
+                    if (onMarkerPress) onMarkerPress(primero);
+                  }}
+                >
+                  <View style={styles.nativeCluster}>
+                    <Text style={styles.nativeClusterText}>{cluster.items.length}</Text>
+                  </View>
+                </NativeMarker>
+              );
+            }
+            const incident = cluster.items[0];
+            const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
+            return (
+              <NativeMarker
+                key={incident.id}
+                coordinate={{
+                  latitude: incident.location.latitude,
+                  longitude: incident.location.longitude,
+                }}
+                pinColor={pinColor}
+                title={incident.title}
+                description={`${incident.category} • Credibilidad: ${incident.credibilityScore}%`}
+                onPress={() => {
+                  setActiveIncident(incident);
+                  if (onMarkerPress) onMarkerPress(incident);
+                }}
+              />
+            );
+          })}
 
-  // Renderizado interactivo de respaldo (usado en Web o en caso de indisponibilidad del mapa nativo)
-  const renderFallbackMap = () => (
+          {selectedLocation && (
+            <NativeMarker
+              coordinate={{
+                latitude: selectedLocation.latitude,
+                longitude: selectedLocation.longitude,
+              }}
+              pinColor="#2563EB"
+              title="Ubicación fijada"
+              draggable={draggablePin}
+              onDragEnd={(e: any) => {
+                if (onSelectLocation && e.nativeEvent?.coordinate) {
+                  const { latitude, longitude } = e.nativeEvent.coordinate;
+                  onSelectLocation({
+                    latitude,
+                    longitude,
+                    address: `Punto fijado (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`,
+                  });
+                }
+              }}
+            />
+          )}
+        </NativeMapView>
+      </View>
+    );
+  }
+
+  // Fallback visual interactivo para Web / Expo Web (con mapa estilizado de Argentina / CABA)
+  return (
     <View style={[styles.webContainer, style]}>
       {/* Fondo de mapa con cuadrícula temática */}
       <View style={styles.gridOverlay}>
@@ -159,7 +271,24 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
         <View style={styles.avenueV2} />
       </View>
 
-      {/* Badge con la dirección o zona actual */}
+      {showHeatmap && <View style={styles.webHeatmapOverlay} />}
+
+      {typeof radioKm === 'number' && radioKm > 0 && (
+        <View style={styles.webRadiusWrapper} pointerEvents="none">
+          <View
+            style={[
+              styles.webRadiusCircle,
+              {
+                width: Math.min(240, radioKm * 12),
+                height: Math.min(240, radioKm * 12),
+                borderRadius: Math.min(120, radioKm * 6),
+              },
+            ]}
+          />
+          <Text style={styles.webRadiusLabel}>{radioKm} km</Text>
+        </View>
+      )}
+
       <View style={styles.mapHeaderBadge}>
         <Ionicons name="map-outline" size={14} color="#0284C7" />
         <Text style={styles.mapHeaderBadgeText} numberOfLines={1}>
@@ -185,8 +314,8 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
       {/* Marcadores de incidentes sobre el mapa */}
       {incidents.map((incident, index) => {
         const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
-        const posX = 15 + ((index * 26 + 18) % 70);
-        const posY = 18 + ((index * 22 + 20) % 64);
+        const posX = 15 + ((index * 26 + 18) % 72);
+        const posY = 18 + ((index * 22 + 20) % 65);
 
         return (
           <TouchableOpacity
@@ -219,8 +348,8 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
         <View style={[styles.selectedPinContainer, { left: '46%', top: '44%' }]}>
           <Ionicons name="location-sharp" size={32} color="#2563EB" />
           <View style={styles.pinPulse} />
-          <Text style={styles.selectedPinText} numberOfLines={1}>
-            Punto fijado
+          <Text style={styles.selectedPinText}>
+            {draggablePin ? 'Arrastrá el pin' : 'Punto fijado'}
           </Text>
         </View>
       )}
@@ -257,28 +386,6 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
             📍 {activeIncident.location.address}
           </Text>
           <Text style={styles.cardHint}>Toca para ver detalle completo →</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Botón flotante para recentrar en la ubicación del usuario */}
-      {showRecenterButton && (
-        <TouchableOpacity
-          style={styles.recenterFab}
-          activeOpacity={0.8}
-          onPress={() => locateUser(true)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel="Centrar en mi ubicación actual"
-          accessibilityRole="button"
-        >
-          {isLocating ? (
-            <ActivityIndicator size="small" color="#0F172A" />
-          ) : (
-            <Ionicons
-              name={userLocation ? 'locate' : 'locate-outline'}
-              size={22}
-              color="#0F172A"
-            />
-          )}
         </TouchableOpacity>
       )}
     </View>
@@ -441,6 +548,30 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: '#EAF0F6',
   },
+  webHeatmapOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(239, 68, 68, 0.18)',
+  },
+  webRadiusWrapper: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    left: '50%',
+    top: '50%',
+    transform: [{ translateX: -60 }, { translateY: -60 }],
+    zIndex: 4,
+  },
+  webRadiusCircle: {
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(37, 99, 235, 0.6)',
+  },
+  webRadiusLabel: {
+    position: 'absolute',
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1D4ED8',
+  },
   riverDecoration: {
     position: 'absolute',
     right: 0,
@@ -483,6 +614,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 6,
     backgroundColor: '#CBD5E1',
+  },
+  nativeCluster: {
+    minWidth: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  nativeClusterText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
   },
   mapHeaderBadge: {
     position: 'absolute',

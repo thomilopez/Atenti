@@ -11,19 +11,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { IdentifierType, RootStackParamList } from '../types';
+import { IdentifierType, IncidentCategory, LocationData, RootStackParamList } from '../types';
 import { MapViewWrapper } from '../components/MapViewWrapper';
+import { MapPickerModal } from '../components/MapPickerModal';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { useAuth } from '../context/AuthContext';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { validarCbu, validarCuit, validarTelefonoE164, CATEGORIAS, CategoriaTipo } from '../services/normalize';
+import { listarCategoriasActivas } from '../services/categoryService';
 import {
-  REPORT_CATEGORIES,
-  getCategoryMetadata,
-} from '../constants/reportCategories';
+  obtenerUbicacionActual,
+  ubicacionConDireccion,
+  geocodificarDireccion,
+  componerDireccion,
+} from '../services/locationService';
+import { filtrarTexto, contieneLenguajeOfensivo } from '../services/lexiconFilter';
+import { useResponsive } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
 
-const IDENTIFIER_TYPES: IdentifierType[] = ['Alias', 'CBU', 'Tel', 'Local'];
+const IDENTIFIER_TYPES: IdentifierType[] = ['Alias', 'CBU', 'CUIT', 'Tel', 'Local'];
 
 export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) => {
   const { isAuthenticated } = useAuth();
@@ -38,22 +45,30 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
     setStory,
     location,
     setLocation,
+    pinConfirmado,
+    setPinConfirmado,
+    credibilityScore,
     saveCurrentDraft,
   } = useReportFlow();
 
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [identifierDropdownOpen, setIdentifierDropdownOpen] = useState(false);
+  const { mapPickerHeight } = useResponsive();
+  const [categorias, setCategorias] = useState<CategoriaTipo[]>(CATEGORIAS.map((c) => ({ ...c })));
+  const [filtroAplicado, setFiltroAplicado] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [direccionQuery, setDireccionQuery] = useState(location.address);
 
-  // RG-01: Bloqueo estricto si el usuario U0 no está autenticado
+  const validationError = route.params?.validationError;
+  const categoriaSeleccionada = categorias.find((c) => c.nombre === category);
+  const requiereUbicacion = Boolean(categoriaSeleccionada?.requiereUbicacion);
+  const relatoValido = story.trim().length >= 20;
+
   useEffect(() => {
-    if (!isAuthenticated) {
-      Alert.alert(
-        'Identificación Requerida (RG-01)',
-        'Para emitir una denuncia necesitas autenticarte y aceptar la Declaración Jurada.'
-      );
-      navigation.replace('P3_LegalAuth', { returnTo: 'P4_CreateReport' });
-    }
-  }, [isAuthenticated, navigation]);
+    listarCategoriasActivas()
+      .then((activas) => setCategorias(activas))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (route.params?.prefilledIdentifier) {
@@ -62,19 +77,82 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
     }
   }, [route.params]);
 
+  const handleMiUbicacion = async () => {
+    const coords = await obtenerUbicacionActual();
+    if (!coords) {
+      Alert.alert(
+        'Ubicación no disponible',
+        'No pudimos obtener tu ubicación. Revisá los permisos del dispositivo.'
+      );
+      return;
+    }
+    const conDireccion = await ubicacionConDireccion(coords);
+    setLocation(conDireccion);
+    setPinConfirmado(true);
+    setDireccionQuery(conDireccion.address);
+  };
+
+  const handleBuscarDireccion = async () => {
+    if (!direccionQuery.trim()) {
+      Alert.alert('Dirección vacía', 'Ingresá una dirección para buscar.');
+      return;
+    }
+    const loc = await geocodificarDireccion(direccionQuery);
+    if (!loc) {
+      // Sin red o sin resultado: se guarda el texto como "sin verificar".
+      setLocation({ ...location, address: direccionQuery.trim(), verificada: false });
+      setPinConfirmado(false);
+      Alert.alert(
+        'Dirección sin verificar',
+        'No pudimos geocodificar la dirección. Se guardó como texto; fijá el pin en el mapa para confirmar la ubicación.'
+      );
+      return;
+    }
+    setLocation(loc);
+    setPinConfirmado(true);
+    setDireccionQuery(loc.address);
+  };
+
+  const actualizarCampo = (
+    campo: 'calle' | 'numero' | 'localidad' | 'provincia' | 'codigoPostal' | 'referencia',
+    valor: string
+  ) => {
+    const next: LocationData = { ...location, [campo]: valor };
+    if (campo === 'localidad') next.city = valor;
+    if (campo === 'provincia') next.province = valor;
+    setLocation({ ...next, address: componerDireccion(next) });
+  };
+
   const handleNext = async () => {
-    // Si el CBU no tiene 22 dígitos numéricos, disparamos P6
-    if (identifierType === 'CBU') {
-      const cleanCbu = identifierValue.replace(/\D/g, '');
-      if (cleanCbu.length !== 22) {
-        await saveCurrentDraft();
-        navigation.navigate('P6_ValidationError', {
+    // RF-088: el CBU debe tener 22 dígitos y checksum válido.
+    if (identifierType === 'CBU' && !validarCbu(identifierValue)) {
+      await saveCurrentDraft();
+      navigation.replace('P4_CreateReport', {
+        validationError: {
           field: 'CBU',
           message: 'Ingresá un CBU válido. Tus demás datos se guardaron',
           invalidValue: identifierValue,
-        });
-        return;
-      }
+        },
+      });
+      return;
+    }
+
+    // RF-088b: el CUIT debe tener 11 dígitos y checksum AFIP válido.
+    if (identifierType === 'CUIT' && !validarCuit(identifierValue)) {
+      Alert.alert(
+        'CUIT inválido',
+        'Ingresá un CUIT de 11 dígitos con dígito verificador válido.'
+      );
+      return;
+    }
+
+    // RF-089: el teléfono debe quedar en formato E.164.
+    if (identifierType === 'Tel' && !validarTelefonoE164(identifierValue)) {
+      Alert.alert(
+        'Teléfono inválido',
+        'Ingresá un teléfono argentino válido (podés usar 0, 15 o +54).'
+      );
+      return;
     }
 
     if (!identifierValue.trim()) {
@@ -84,6 +162,21 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
 
     if (!story.trim()) {
       Alert.alert('Relato requerido', 'Contanos brevemente qué ocurrió.');
+      return;
+    }
+
+    // RG-02: relato mínimo de 20 caracteres.
+    if (story.trim().length < 20) {
+      Alert.alert('Relato muy corto', 'El relato debe tener al menos 20 caracteres.');
+      return;
+    }
+
+    // RG-03: las categorías con ubicación obligatoria exigen pin o dirección verificada.
+    if (requiereUbicacion && !pinConfirmado && !location.verificada) {
+      Alert.alert(
+        'Ubicación requerida',
+        'Para esta categoría tenés que fijar el pin sobre el mapa o buscar una dirección.'
+      );
       return;
     }
 
@@ -125,102 +218,60 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.formContainer}>
-          {/* Caja desplegable 1: Categoría ampliada con iconos */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>¿Qué quieres reportar?</Text>
-            <TouchableOpacity
-              style={styles.dropdownBox}
-              activeOpacity={0.8}
-              onPress={() => {
-                setCategoryDropdownOpen(!categoryDropdownOpen);
-                setIdentifierDropdownOpen(false);
-              }}
-              accessibilityRole="combobox"
-              accessibilityLabel="Categoría del reporte"
-            >
-              <View style={styles.selectedCategoryRow}>
-                <View
-                  style={[
-                    styles.categoryIconBadge,
-                    { backgroundColor: currentCategoryMeta.badgeBg },
-                  ]}
-                >
-                  <Ionicons
-                    name={currentCategoryMeta.icon as any}
-                    size={16}
-                    color={currentCategoryMeta.color}
-                  />
-                </View>
-                <Text style={styles.dropdownText} numberOfLines={1}>
-                  {category}
-                </Text>
-              </View>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Cuerpo: Dos cajas desplegables (Categoría, Tipo de Identificador) */}
+        
+        {/* Caja desplegable 1: Categoría */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>¿Qué quieres reportar?</Text>
+          <TouchableOpacity
+            style={styles.dropdownBox}
+            onPress={() => {
+              setCategoryDropdownOpen(!categoryDropdownOpen);
+              setIdentifierDropdownOpen(false);
+            }}
+          >
+            <View style={styles.dropdownValueRow}>
               <Ionicons
-                name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color="#64748B"
+                name={(categoriaSeleccionada?.icono ?? 'pricetag-outline') as any}
+                size={16}
+                color={categoriaSeleccionada?.color ?? '#0F172A'}
               />
-            </TouchableOpacity>
+              <Text style={styles.dropdownText}>{category}</Text>
+            </View>
+            <Ionicons
+              name={categoryDropdownOpen ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#64748B"
+            />
+          </TouchableOpacity>
 
-            {categoryDropdownOpen && (
-              <View style={styles.dropdownOptions}>
-                {REPORT_CATEGORIES.map((cat) => {
-                  const isSelected = category === cat.name;
-                  return (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[
-                        styles.optionItemCategory,
-                        isSelected && styles.optionItemCategorySelected,
-                      ]}
-                      activeOpacity={0.75}
-                      onPress={() => {
-                        setCategory(cat.name);
-                        setIdentifierType(cat.defaultIdentifierType);
-                        setCategoryDropdownOpen(false);
-                      }}
-                    >
-                      <View
-                        style={[
-                          styles.categoryIconBadge,
-                          { backgroundColor: cat.badgeBg },
-                        ]}
-                      >
-                        <Ionicons
-                          name={cat.icon as any}
-                          size={16}
-                          color={cat.color}
-                        />
-                      </View>
-                      <View style={styles.optionCategoryTextCol}>
-                        <Text
-                          style={[
-                            styles.optionText,
-                            isSelected && styles.optionTextSelected,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {cat.name}
-                        </Text>
-                        <Text style={styles.optionDescription} numberOfLines={1}>
-                          {cat.description}
-                        </Text>
-                      </View>
-                      {isSelected && (
-                        <Ionicons name="checkmark" size={16} color="#0F172A" />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-          </View>
+          {categoryDropdownOpen && (
+            <View style={styles.dropdownOptions}>
+              {categorias.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setCategory(cat.nombre);
+                    setCategoryDropdownOpen(false);
+                  }}
+                >
+                  <View style={styles.optionRow}>
+                    <Ionicons
+                      name={(cat.icono ?? 'pricetag-outline') as any}
+                      size={16}
+                      color={cat.color ?? '#0F172A'}
+                    />
+                    <Text style={[styles.optionText, category === cat.nombre && styles.optionTextSelected]}>
+                      {cat.nombre}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
 
           {/* Caja desplegable 2: Tipo de Identificador */}
           <View style={styles.fieldGroup}>
@@ -243,128 +294,234 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
               />
             </TouchableOpacity>
 
-            {identifierDropdownOpen && (
-              <View style={styles.dropdownOptions}>
-                {IDENTIFIER_TYPES.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={styles.optionItem}
-                    activeOpacity={0.75}
-                    onPress={() => {
-                      setIdentifierType(type);
-                      setIdentifierDropdownOpen(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        identifierType === type && styles.optionTextSelected,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      [{type}]{' '}
-                      {type === 'Alias'
-                        ? '(ej: ju.mp)'
-                        : type === 'CBU'
-                        ? '(22 dígitos)'
-                        : type === 'Tel'
-                        ? '(Celular)'
-                        : '(Dirección)'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {/* Input del valor del Identificador */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Identificador afectado</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder={
-                  identifierType === 'CBU'
-                    ? '22 dígitos de CBU'
-                    : identifierType === 'Tel'
-                    ? 'ej: +54 9 11 ...'
-                    : identifierType === 'Local'
-                    ? 'Dirección o nombre del local'
-                    : 'ej: ju.mp o alias.banco'
-                }
-                placeholderTextColor="#94A3B8"
-                value={identifierValue}
-                onChangeText={setIdentifierValue}
-                keyboardType={
-                  identifierType === 'CBU' || identifierType === 'Tel'
-                    ? 'numeric'
-                    : 'default'
-                }
-                autoCapitalize="none"
-              />
+          {identifierDropdownOpen && (
+            <View style={styles.dropdownOptions}>
+              {IDENTIFIER_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setIdentifierType(type);
+                    setIdentifierDropdownOpen(false);
+                  }}
+                >
+                  <Text style={[styles.optionText, identifierType === type && styles.optionTextSelected]}>
+                    [{type}] {type === 'Alias' ? '(ej: ju.mp)' : type === 'CBU' ? '(22 dígitos)' : type === 'CUIT' ? '(11 dígitos)' : type === 'Tel' ? '(Celular)' : '(Dirección)'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </View>
+          )}
+        </View>
 
-          {/* Caja de texto grande: Relato */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Relato de los hechos</Text>
+        {/* Input del valor del Identificador */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Identificador afectado</Text>
+          <View style={validationError ? styles.inputBoxError : styles.inputBox}>
             <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-              placeholder="Detalla qué sucedió para alertar a otros usuarios de la comunidad..."
+              style={[styles.textInput, validationError && styles.textInputError]}
+              placeholder={identifierType === 'CBU' ? '22 dígitos de CBU' : identifierType === 'CUIT' ? '11 dígitos de CUIT' : 'ej: ju.mp'}
               placeholderTextColor="#94A3B8"
-              value={story}
-              onChangeText={setStory}
+              value={identifierValue}
+              onChangeText={setIdentifierValue}
+              keyboardType={identifierType === 'CBU' || identifierType === 'CUIT' || identifierType === 'Tel' ? 'numeric' : 'default'}
+              autoCapitalize="none"
+              autoFocus={Boolean(validationError)}
             />
           </View>
+          {validationError && (
+            <Text style={styles.errorHelpText}>{validationError.message}</Text>
+          )}
+        </View>
 
-          {/* Mapa para fijar pin */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>Mapa para fijar pin geolocalizado</Text>
-            <View style={styles.mapRectangle}>
-              <MapViewWrapper
-                selectedLocation={location}
-                onSelectLocation={(loc) => setLocation(loc)}
-                centerLatitude={location.latitude}
-                centerLongitude={location.longitude}
-                autoLocateUser={false}
-                showRecenterButton={true}
+        {/* Una caja de texto grande (Relato) */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Relato</Text>
+          <TextInput
+            style={styles.textArea}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            placeholder="Detalla qué sucedió para alertar a otros usuarios..."
+            placeholderTextColor="#94A3B8"
+            value={story}
+            onChangeText={(valor) => {
+              if (contieneLenguajeOfensivo(valor)) setFiltroAplicado(true);
+              setStory(filtrarTexto(valor));
+            }}
+          />
+          <Text style={[styles.storyCounter, relatoValido ? styles.storyCounterOk : styles.storyCounterError]}>
+            {story.trim().length}/20 caracteres mínimos
+          </Text>
+          {filtroAplicado && (
+            <Text style={styles.filterNote}>
+              Se reemplazaron términos ofensivos del relato.
+            </Text>
+          )}
+        </View>
+
+        {/* Dirección manual */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Ubicación</Text>
+          <View style={styles.addressSearchRow}>
+            <View style={styles.addressSearchInput}>
+              <Ionicons name="search" size={16} color="#64748B" />
+              <TextInput
+                style={styles.addressInput}
+                placeholder="Calle, número, localidad..."
+                placeholderTextColor="#94A3B8"
+                value={direccionQuery}
+                onChangeText={setDireccionQuery}
+                onSubmitEditing={handleBuscarDireccion}
+                returnKeyType="search"
               />
             </View>
-            <Text style={styles.locationHelp} numberOfLines={1}>
-              📍 {location.address}
-            </Text>
+            <TouchableOpacity style={styles.addressSearchBtn} onPress={handleBuscarDireccion}>
+              <Text style={styles.addressSearchBtnText}>Buscar</Text>
+            </TouchableOpacity>
           </View>
+
+          <View style={styles.addressRow}>
+            <View style={styles.addressField}>
+              <Text style={styles.addressLabel}>Calle</Text>
+              <TextInput
+                style={styles.addressTextInput}
+                value={location.calle ?? ''}
+                onChangeText={(v) => actualizarCampo('calle', v)}
+                placeholder="Av. Corrientes"
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
+            <View style={styles.addressFieldSmall}>
+              <Text style={styles.addressLabel}>Número</Text>
+              <TextInput
+                style={styles.addressTextInput}
+                value={location.numero ?? ''}
+                onChangeText={(v) => actualizarCampo('numero', v)}
+                placeholder="1234"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View style={styles.addressRow}>
+            <View style={styles.addressField}>
+              <Text style={styles.addressLabel}>Localidad</Text>
+              <TextInput
+                style={styles.addressTextInput}
+                value={location.localidad ?? ''}
+                onChangeText={(v) => actualizarCampo('localidad', v)}
+                placeholder="CABA"
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
+            <View style={styles.addressFieldSmall}>
+              <Text style={styles.addressLabel}>CP</Text>
+              <TextInput
+                style={styles.addressTextInput}
+                value={location.codigoPostal ?? ''}
+                onChangeText={(v) => actualizarCampo('codigoPostal', v)}
+                placeholder="1000"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View style={styles.addressRow}>
+            <View style={styles.addressField}>
+              <Text style={styles.addressLabel}>Provincia</Text>
+              <TextInput
+                style={styles.addressTextInput}
+                value={location.provincia ?? ''}
+                onChangeText={(v) => actualizarCampo('provincia', v)}
+                placeholder="Buenos Aires"
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
+          </View>
+
+          <View style={styles.addressRow}>
+            <View style={styles.addressField}>
+              <Text style={styles.addressLabel}>Referencia (opcional)</Text>
+              <TextInput
+                style={styles.addressTextInput}
+                value={location.referencia ?? ''}
+                onChangeText={(v) => actualizarCampo('referencia', v)}
+                placeholder="Entre calles, piso, timbre..."
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Un rectángulo mediano (Mapa para fijar pin) */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Mapa para fijar pin</Text>
+          <View style={[styles.mapRectangle, { height: mapPickerHeight }]}>
+            <MapViewWrapper
+              selectedLocation={location}
+              draggablePin
+              onSelectLocation={async (loc) => {
+                setPinConfirmado(true);
+                const conDireccion = await ubicacionConDireccion(loc);
+                setLocation(conDireccion);
+                setDireccionQuery(conDireccion.address);
+              }}
+              centerLatitude={location.latitude}
+              centerLongitude={location.longitude}
+            />
+            <TouchableOpacity style={styles.miUbicacionBtn} onPress={handleMiUbicacion}>
+              <Ionicons name="locate" size={18} color="#0F172A" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.mapActionsRow}>
+            <TouchableOpacity style={styles.expandMapBtn} onPress={() => setShowMapPicker(true)}>
+              <Ionicons name="expand-outline" size={16} color="#0F172A" />
+              <Text style={styles.expandMapText}>Agrandar mapa</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.locationHelp}>📍 {location.address}</Text>
+          {requiereUbicacion && !pinConfirmado && !location.verificada && (
+            <Text style={styles.pinRequiredHelp}>
+              Esta categoría requiere que fijes el pin o busques una dirección.
+            </Text>
+          )}
         </View>
       </ScrollView>
 
       {/* Pie de pantalla fijo: Barra de credibilidad y botón Siguiente */}
       <View style={styles.fixedFooter}>
-        <View style={styles.footerInner}>
-          <View style={styles.credibilityBox}>
-            <Text style={styles.credibilityLabel}>Credibilidad:</Text>
-            <Text style={styles.credibilityPercent}>20%</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.nextSecondaryBtn}
-            activeOpacity={0.75}
-            hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
-            onPress={handleNext}
-            accessibilityRole="button"
-            accessibilityLabel="Siguiente paso: validación de evidencias"
-          >
-            <Text style={styles.nextSecondaryBtnText} numberOfLines={1}>
-              Siguiente
-            </Text>
-            <Ionicons name="arrow-forward" size={16} color="#000000" />
-          </TouchableOpacity>
+        <View style={styles.credibilityBox}>
+          <Text style={styles.credibilityLabel}>Credibilidad:</Text>
+          <Text style={styles.credibilityPercent}>{credibilityScore}%</Text>
         </View>
+
+        <TouchableOpacity
+          style={[styles.nextSecondaryBtn, !relatoValido && styles.btnDisabled]}
+          activeOpacity={0.88}
+          onPress={handleNext}
+          disabled={!relatoValido}
+        >
+          <Text style={styles.nextSecondaryBtnText}>Siguiente</Text>
+          <Ionicons name="arrow-forward" size={16} color="#000000" />
+        </TouchableOpacity>
       </View>
 
       <BottomNavBar activeTab="report" />
+
+      <MapPickerModal
+        visible={showMapPicker}
+        initial={location}
+        onClose={() => setShowMapPicker(false)}
+        onConfirm={(loc) => {
+          setLocation(loc);
+          setPinConfirmado(true);
+          setDireccionQuery(loc.address);
+          setShowMapPicker(false);
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -502,17 +659,43 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#000000',
+  },
+  dropdownValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   inputBox: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 8,
+    borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    minHeight: 48,
-    justifyContent: 'center',
+  },
+  // Borde grueso oscuro para el error de validación (unifica el comportamiento de P6)
+  inputBoxError: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#000000',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  errorHelpText: {
+    fontSize: 11,
+    color: '#DC2626',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  textInputError: {
+    fontWeight: '700',
   },
   textInput: {
     fontSize: 14,
@@ -537,12 +720,135 @@ const styles = StyleSheet.create({
     borderColor: '#CBD5E1',
     backgroundColor: '#E2E8F0',
   },
+  miUbicacionBtn: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    zIndex: 20,
+  },
   locationHelp: {
     fontSize: 11,
     color: '#64748B',
     marginTop: 4,
     flexShrink: 1,
   },
+  pinRequiredHelp: {
+    fontSize: 11,
+    color: '#DC2626',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  mapActionsRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  expandMapBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  expandMapText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  addressSearchRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  addressSearchInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    height: 40,
+  },
+  addressInput: {
+    flex: 1,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  addressSearchBtn: {
+    backgroundColor: '#000000',
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addressSearchBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  addressRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  addressField: {
+    flex: 1,
+  },
+  addressFieldSmall: {
+    width: 110,
+  },
+  addressLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    marginBottom: 3,
+    fontWeight: '600',
+  },
+  addressTextInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: '#0F172A',
+  },
+  storyCounter: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  storyCounterOk: {
+    color: '#059669',
+  },
+  storyCounterError: {
+    color: '#DC2626',
+  },
+  filterNote: {
+    fontSize: 10,
+    color: '#92400E',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  // Pie de pantalla (Fijo)
   fixedFooter: {
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,

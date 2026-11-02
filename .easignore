@@ -1,0 +1,16 @@
+# Archivos que EAS NO debe subir.
+# Nota: `.easignore` reemplaza a `.gitignore` para EAS Build, por eso repetimos
+# lo importante. `google-services.json` NO se ignora acá: EAS lo necesita para
+# el build de Android aunque git no lo trackee.
+node_modules/
+.expo/
+dist/
+web-build/
+.git/
+android/
+ios/
+.env
+.env.*
+.expo-export-test/
+.claude/
+OPENSPEC_TUTORIAL.md

@@ -31,21 +31,59 @@ npm run android
 npm run web
 ```
 
+> Para conectar los servicios reales (Firebase Auth/Firestore/Storage, Cloud
+> Functions, Google Maps, Geocoding, Cloud Vision y RENAPER) seguí
+> [`docs/setup-servicios.md`](docs/setup-servicios.md) y completá el archivo
+> `.env` usando `.env.example` como base. Sin `.env`, la app funciona en modo
+> demo con el fallback en memoria.
+>
+> **Claves:** la API key de Maps se inyecta desde
+> `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` vía `app.config.js` (no se commitea). El
+> archivo `google-services.json` **no se trackea en git**: cada entorno lo coloca
+> localmente (y EAS lo incluye mediante `.easignore`).
+
 ---
 
-## 🗺️ Mapa de las 9 Pantallas Implementadas
+## 🗺️ Mapa de Pantallas
 
 | Pantalla | Componente | Descripción |
 |---|---|---|
-| **P1** | `P1_HomeScreen` | **Buscador Anónimo:** Barra de búsqueda unificada, chips `[Alias] [CBU] [Tel] [Local]`, mapa interactivo ocupando el 70% de la pantalla con pines por veracidad, botón flotante (FAB) circular oscuro con `+` (conduce a P3 o P4 según login). Acceso U0 libre. |
-| **P2** | `P2_ReportDetailScreen` | **Detalle de Incidencia:** Título (ej. "Alias: ju.mp"), indicador semáforo visual, barra de veracidad al 80%, mapa de ubicación, 2 recuadros de fotos con evidencias enmascaradas y botón "Denunciar mismo objetivo". |
-| **P3** | `P3_LegalAuthScreen` | **Gate Login & DDJJ:** Ícono de candado/usuario, *"Para denunciar necesitás identificarte"*, botón *"Continuar con Google"* y checkbox obligatorio de Declaración Jurada y Términos. |
-| **P4** | `P4_CreateReportScreen` | **Formulario Paso 1:** Selectores desplegables (Categoría, Tipo de Identificador), valor, relato, mapa para fijar el pin y panel inferior fijo con *"Credibilidad: 20%"* y botón secundario *"Siguiente"*. |
-| **P5** | `P5_OCRValidationScreen` | **Evidencias Paso 2:** Botones grandes delineados con `+` ("Subir captura", "Subir comprobante"), aviso *"Validando OCR..."*, panel inferior dinámico con *"Credibilidad: 80%"* y botón principal oscuro *"Enviar Reporte"*. |
-| **P6** | `P6_ValidationErrorScreen` | **Error de Validación:** Duplica la interfaz de P4, resalta con borde grueso y oscuro el campo de CBU inválido con el texto *"Ingresá un CBU válido. Tus demás datos se guardaron"*. |
-| **P7** | `P7_OfflineModal` | **Falla Técnica / Offline:** Pantalla P5 oscurecida con modal flotante: *"No hay conexión. Se guardó un borrador"*, botones *"Reintentar"* y *"Ver Mis Borradores"* integrados con `AsyncStorage`. |
-| **P8** | `P8_ConfirmationScreen` | **Confirmación de Envío:** Círculo grande con check de éxito, textos informativos *"Código: AT-2026-XXXX"* y *"Credibilidad final: 80%"*, botones *"Seguir estado"* y *"Volver al inicio"*. |
-| **P9** | `P9_CredibilityPanelScreen` | **Panel "Mi Credibilidad":** Checklist interactivo de 3 ítems (Cuenta Google verificada, Teléfono verificado +15% con SMS OTP, DNI verificado +10% con documento OCR) y gráfico explicativo de la fórmula matemática RG-07. |
+| **P0** | `P0_WelcomeScreen` | **Bienvenida:** Logo + eslogan, animación de entrada y accesos a Buscar, Reportar e Ingresar. Es la pantalla inicial de la app. |
+| **P1** | `P1_HomeScreen` | **Inicio search-first:** buscador protagonico, chips `[Alias] [CBU] [Tel] [Local]`, búsquedas recientes, tendencias, skeleton y preview compacto del mapa con "Ver mapa completo". FAB para reportar. |
+| **P2** | `P2_ReportDetailScreen` | **Detalle de Incidencia:** título, semáforo, barra de veracidad, desglose, mapa, evidencias enmascaradas, historial de score y botones para impugnar o denunciar el mismo objetivo. |
+| **P3** | `P3_LegalAuthScreen` | **Gate Login & DDJJ:** "Continuar con Google" y checkbox obligatorio de Declaración Jurada. |
+| **P4** | `P4_CreateReportScreen` | **Formulario Paso 1:** categoría (con ícono/color), tipo de identificador (Alias/CBU/CUIT/Tel/Local), valor, relato (mín. 20), dirección manual + pin y mapa expandible. Incluye validaciones de CBU/CUIT/Tel (ex P6). |
+| **P5** | `P5_OCRValidationScreen` | **Evidencias Paso 2:** captura, comprobante o PDF; OCR; límites 5 archivos/10MB y envío del reporte. |
+| **P7** | `P7_OfflineModal` | **Offline:** aviso de borrador guardado, reintento y acceso a borradores. |
+| **P8** | `P8_ConfirmationScreen` | **Confirmación:** código de seguimiento y credibilidad final. |
+| **P9** | `P9_CredibilityPanelScreen` | **Mi Credibilidad:** factores de identidad, desglose y fórmula RG-07. |
+| **P10** | `P10_MisDenunciasScreen` | **Mis Denuncias:** filtros por estado y acceso a edición o estado de disputa. |
+| **P11** | `P11_TrackingCodeScreen` | **Consulta Pública:** estado por código `AT-2026-XXXXXX`. |
+| **P12** | `P12_EditReportScreen` | **Editar Denuncia:** ventana de 24hs y borrado lógico justificado. |
+| **P13** | `P13_SearchResultsScreen` | **Resultados:** filtros avanzados y scroll infinito. |
+| **P14** | `P14_AdminDashboardScreen` | **Panel Admin:** KPIs, disputas, métricas y accesos a gestión. |
+| **P15** | `P15_AdminDisputeScreen` | **Resolver Disputa:** mantener publicada o retirar. |
+| **P16** | `P16_AdminCategoriesScreen` | **Categorías:** alta/edición/activación. |
+| **P17** | `P17_AdminUsersScreen` | **Usuarios:** suspender cuentas. |
+| **P18** | `P18_AdminAuditScreen` | **Auditoría:** uid, email, IP, hash de DDJJ, evidencias e historial. |
+| **P19** | `P19_NotificationCenterScreen` | **Notificaciones:** historial, lectura y preferencias. |
+| **P20** | `P20_SettingsScreen` | **Ajustes:** cuenta, privacidad, legal, telemetría y baja de datos. |
+| **P21** | `P21_ImpugnacionScreen` | **Impugnar:** CUIT/DNI + descargo y take-down. |
+| **P22** | `P22_DisputeStatusScreen` | **Estado de Disputa:** countdown 72hs y respuesta. |
+| **P23** | `P23_LegalScreen` | **Legal:** términos versionados, privacidad y retención. |
+| **P24** | `P24_RightToBeForgottenScreen` | **Derecho al olvido:** solicitud formal. |
+| **P25** | `P25_AuditLogScreen` | **Log de Auditoría:** eventos globales (admin). |
+| **P26** | `P26_NotificationPreferencesScreen` | **Preferencias:** por tipo de notificación. |
+| **P27** | `P27_StoriesFeedScreen` | **Historias de estafas:** feed con búsqueda, filtros, disclaimer y acceso a normas. |
+| **P28** | `P28_StoryDetailScreen` | **Detalle de relato:** señales de alerta, identificadores, "me pasó / lo vi", compartir WhatsApp y reportar abuso. |
+| **P29** | `P29_CreateStoryScreen` | **Contar una estafa:** título, categoría, víctima/testigo, cómo funciona, señales, identificadores, enlaces y fuente. |
+| **P30** | `P30_MyStoriesScreen` | **Mis relatos:** enviados (con estado) y borradores. |
+| **P32** | `P32_StoryModerationScreen` | **Moderar relatos (admin):** cola EN_REVISION, aprobar/ocultar. |
+| **P33** | `P33_CommunityGuidelinesScreen` | **Normas de la comunidad:** reglas y disclaimer legal. |
+| **P31** | `P31_FullMapScreen` | **Mapa completo:** mapa a pantalla completa con calor, radio y "Mi ubicación". |
+
+> La antigua **P6 (Error de Validación)** se unificó en `P4_CreateReportScreen`
+> mediante el parámetro `validationError`, eliminando la pantalla duplicada.
 
 ---
 

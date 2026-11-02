@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { VeracityBar } from '../components/VeracityBar';
@@ -16,7 +20,16 @@ import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useAuth } from '../context/AuthContext';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
-import { AppButton } from '../components/AppButton';
+import { toPublicProjection, approximateLocation } from '../services/masking';
+import { obtenerHistorialScore, EventoScore } from '../services/scoreHistory';
+import { ScoreBreakdown } from '../components/ScoreBreakdown';
+import { useResponsive } from '../hooks/useResponsive';
+import {
+  exportarFichaPDF,
+  exportarCSV,
+  generarCSV,
+  hashAutenticidad,
+} from '../services/exportService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P2_ReportDetail'>;
 
@@ -24,6 +37,62 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
   const { incident } = route.params;
   const { isAuthenticated } = useAuth();
   const { setIdentifierType, setIdentifierValue, setCategory } = useReportFlow();
+  const { mapPickerHeight } = useResponsive();
+
+  const proyeccion = useMemo(() => toPublicProjection(incident), [incident]);
+  const publicLocation = useMemo(() => approximateLocation(incident.location), [incident]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
+  const [authHash, setAuthHash] = useState('');
+  const [historialScore, setHistorialScore] = useState<EventoScore[]>([]);
+
+  useEffect(() => {
+    hashAutenticidad(proyeccion).then(setAuthHash).catch(() => {});
+  }, [proyeccion]);
+
+  useEffect(() => {
+    obtenerHistorialScore(incident.id).then(setHistorialScore).catch(() => {});
+  }, [incident.id]);
+
+  const handleExportPDF = async () => {
+    setExporting('pdf');
+    try {
+      await exportarFichaPDF(proyeccion);
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo exportar la ficha en PDF.');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    setExporting('csv');
+    try {
+      const columnas = [
+        { key: 'codigo', label: 'Codigo' },
+        { key: 'titulo', label: 'Titulo' },
+        { key: 'categoria', label: 'Categoria' },
+        { key: 'score', label: 'Score' },
+        { key: 'estado', label: 'Estado' },
+        { key: 'relato', label: 'Relato' },
+        { key: 'ubicacion', label: 'Ubicacion' },
+      ];
+      const fila = {
+        codigo: proyeccion.codigo,
+        titulo: proyeccion.tituloEnmascarado,
+        categoria: proyeccion.categoria,
+        score: proyeccion.credibilidadPct,
+        estado: proyeccion.estado,
+        relato: proyeccion.relato,
+        ubicacion: proyeccion.ubicacion.address,
+      };
+      await exportarCSV(`atenti_${proyeccion.codigo}.csv`, generarCSV([fila], columnas));
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo exportar la ficha en CSV.');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const handleDenounceSameTarget = () => {
     setIdentifierType(incident.identifierType);
@@ -62,8 +131,13 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
         >
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.navTitle} numberOfLines={1}>Detalle de Incidencia</Text>
-        <View style={{ width: 36 }} />
+        <Text style={styles.navTitle}>Detalle de Incidencia</Text>
+        <TouchableOpacity
+          onPress={() => setShowExportModal(true)}
+          style={styles.exportIconBtn}
+        >
+          <Ionicons name="share-outline" size={20} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -76,6 +150,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
                 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600',
             }}
             style={styles.heroImage}
+            blurRadius={14}
           />
         </View>
 
@@ -101,25 +176,30 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
               label="Nivel de Veracidad"
             />
           </View>
+
+          <View style={styles.breakdownWrap}>
+            <ScoreBreakdown breakdown={incident.credibilityBreakdown} />
+          </View>
         </View>
 
         {/* Cuerpo: Un recuadro para el mapa */}
         <View style={styles.mapSection}>
           <Text style={styles.sectionLabel}>Ubicación Georreferenciada</Text>
-          <View style={styles.mapRecuadro}>
+          <View style={[styles.mapRecuadro, { height: mapPickerHeight }]}>
             <MapViewWrapper
-              selectedLocation={incident.location}
-              centerLatitude={incident.location.latitude}
-              centerLongitude={incident.location.longitude}
+              selectedLocation={publicLocation}
+              centerLatitude={publicLocation.latitude}
+              centerLongitude={publicLocation.longitude}
               style={styles.mapInner}
             />
           </View>
-          <Text style={styles.addressLabel}>📍 {incident.location.address}</Text>
+          <Text style={styles.addressLabel}>📍 {publicLocation.address}</Text>
         </View>
 
         {/* Cuerpo: Debajo 2 cuadrados pequeños para las fotos (Evidencias) */}
         <View style={styles.evidenceSection}>
           <Text style={styles.sectionLabel}>Evidencias</Text>
+          <Text style={styles.maskedNote}>Datos sensibles protegidos con blur</Text>
           <View style={styles.evidenceRow}>
             {/* Cuadrado 1 */}
             <View style={styles.evidenceSquare}>
@@ -127,6 +207,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
                 <Image
                   source={{ uri: incident.evidences[0].uri }}
                   style={styles.squareImage}
+                  blurRadius={14}
                 />
               ) : (
                 <View style={styles.emptySquarePlaceholder}>
@@ -141,6 +222,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
                 <Image
                   source={{ uri: incident.evidences[1].uri }}
                   style={styles.squareImage}
+                  blurRadius={14}
                 />
               ) : (
                 <View style={styles.emptySquarePlaceholder}>
@@ -156,12 +238,39 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
           <Text style={styles.sectionLabel}>Relato</Text>
           <Text style={styles.storyText}>"{incident.story}"</Text>
         </View>
+
+        <View style={styles.historySection}>
+          <Text style={styles.sectionLabel}>Evolución del score</Text>
+          {historialScore.length === 0 ? (
+            <Text style={styles.emptyHistory}>Sin cambios de score registrados.</Text>
+          ) : (
+            historialScore.map((evento) => (
+              <View key={evento.id} style={styles.historyRow}>
+                <View style={styles.historyInfo}>
+                  <Text style={styles.historyMotivo}>{evento.motivo}</Text>
+                  <Text style={styles.historyDate}>
+                    {new Date(evento.fecha).toLocaleString('es-AR')}
+                  </Text>
+                </View>
+                <Text style={styles.historyScore}>{evento.score}%</Text>
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
 
       {/* Pie: Botón ancho "Denunciar mismo objetivo" */}
       <View style={styles.footer}>
-        <AppButton
-          title="Denunciar mismo objetivo"
+        <TouchableOpacity
+          style={styles.impugnarBtn}
+          activeOpacity={0.88}
+          onPress={() => navigation.navigate('P21_Impugnacion', { incident })}
+        >
+          <Text style={styles.impugnarBtnText}>Impugnar esta denuncia</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.denounceBtn}
+          activeOpacity={0.88}
           onPress={handleDenounceSameTarget}
           variant="primary"
           size="lg"
@@ -170,6 +279,55 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
       </View>
 
       <BottomNavBar activeTab="home" />
+
+      <Modal visible={showExportModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Exportar ficha pública</Text>
+            <Text style={styles.modalSubtitle}>{proyeccion.codigo}</Text>
+
+            <View style={styles.qrContainer}>
+              <QRCode value={proyeccion.codigo} size={140} />
+            </View>
+
+            <Text style={styles.hashLabel}>Hash de autenticidad (SHA-256)</Text>
+            <Text style={styles.hashValue} numberOfLines={2}>
+              {authHash || 'Calculando...'}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.exportPdfBtn}
+              onPress={handleExportPDF}
+              disabled={Boolean(exporting)}
+            >
+              {exporting === 'pdf' ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.exportPdfText}>Exportar PDF</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.exportCsvBtn}
+              onPress={handleExportCSV}
+              disabled={Boolean(exporting)}
+            >
+              {exporting === 'csv' ? (
+                <ActivityIndicator color="#0F172A" />
+              ) : (
+                <Text style={styles.exportCsvText}>Exportar CSV</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.closeExportBtn}
+              onPress={() => setShowExportModal(false)}
+            >
+              <Text style={styles.closeExportText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -241,6 +399,44 @@ const styles = StyleSheet.create({
   veracitySection: {
     marginTop: 4,
   },
+  breakdownWrap: {
+    marginTop: 12,
+  },
+  historySection: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  emptyHistory: {
+    fontSize: 12,
+    color: '#94A3B8',
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyMotivo: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  historyDate: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  historyScore: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '700',
@@ -274,6 +470,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  maskedNote: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginBottom: 8,
   },
   // 2 cuadrados pequeños para las fotos (Evidencias)
   evidenceRow: {
@@ -313,6 +514,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+    gap: 8,
+  },
+  impugnarBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#0F172A',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  impugnarBtnText: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '800',
   },
   // Botón ancho "Denunciar mismo objetivo" (en rojo llamativo como en mockup)
   denounceBtn: {
@@ -326,5 +542,90 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  exportIconBtn: {
+    padding: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 16,
+  },
+  qrContainer: {
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  hashLabel: {
+    fontSize: 10,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  hashValue: {
+    fontSize: 10,
+    color: '#334155',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  exportPdfBtn: {
+    width: '100%',
+    backgroundColor: '#000000',
+    borderRadius: 6,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  exportPdfText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  exportCsvBtn: {
+    width: '100%',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 6,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  exportCsvText: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  closeExportBtn: {
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  closeExportText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

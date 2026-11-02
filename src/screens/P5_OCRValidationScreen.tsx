@@ -12,10 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EvidenceItem, RootStackParamList } from '../types';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { processEvidenceOCR } from '../services/ocrService';
+import { MAX_EVIDENCIAS, validarArchivo, formatearBytes } from '../services/evidenceService';
+import { subirEvidencia } from '../services/storageService';
 import { DraftsListModal } from '../components/DraftsListModal';
 import { BottomNavBar } from '../components/BottomNavBar';
 
@@ -40,43 +44,156 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
   const [showOfflineModal, setShowOfflineModal] = useState(false);
   const [showDraftsListModal, setShowDraftsListModal] = useState(false);
 
+  const evidenciasLleno = evidences.length >= MAX_EVIDENCIAS;
+
   const handleUpload = async (type: 'chat_screenshot' | 'bank_receipt') => {
+    if (evidenciasLleno) {
+      Alert.alert('Límite alcanzado', `Podés adjuntar hasta ${MAX_EVIDENCIAS} evidencias.`);
+      return;
+    }
+
     try {
       setOcrLoading(true);
+
+      let uri: string | undefined;
+      let base64: string | undefined;
+      let fileName: string | null | undefined;
+      let mimeType: string | null | undefined;
+      let size: number | undefined;
+      let exif: Record<string, unknown> | undefined;
 
       const demoUri =
         type === 'chat_screenshot'
           ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400'
           : 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400';
 
+      // RF-028/RF-034: selección real desde la galería con base64 y EXIF.
+      try {
+        const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permiso.granted) {
+          const resultado = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            base64: true,
+            quality: 0.7,
+            exif: true,
+          });
+          if (!resultado.canceled && resultado.assets[0]) {
+            const asset = resultado.assets[0];
+            uri = asset.uri;
+            base64 = asset.base64 ?? undefined;
+            fileName = asset.fileName;
+            mimeType = asset.mimeType;
+            size = asset.fileSize;
+            exif = asset.exif ? { ...asset.exif } : undefined;
+          }
+        }
+      } catch (pickerError) {
+        // En web o sin permisos se usa la imagen demo.
+      }
+
+      const archivo = { uri: uri ?? demoUri, name: fileName, mimeType, size };
+      const validacion = validarArchivo(archivo, evidences.length);
+      if (!validacion.ok) {
+        setOcrLoading(false);
+        Alert.alert('Archivo inválido', validacion.error ?? 'No se pudo adjuntar.');
+        return;
+      }
+
+      const finalUri = uri ?? demoUri;
+      const url = await subirEvidencia({
+        uri: finalUri,
+        nombre: fileName ?? `evidencia_${Date.now()}`,
+        mimeType: mimeType ?? 'image/jpeg',
+      });
+
       const ocrResult = await processEvidenceOCR(
         type,
         identifierType,
         identifierValue,
-        demoUri
+        finalUri,
+        base64
       );
 
       const newEvidence: EvidenceItem = {
         id: `ev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         type,
         label: type === 'chat_screenshot' ? 'Captura de Chat' : 'Comprobante de Transferencia',
-        uri: demoUri,
+        uri: url,
         ocrExtractedText: ocrResult.extractedText,
         ocrMatched: ocrResult.matched,
         ocrConfidence: ocrResult.confidence,
         isMasked: true,
         timestamp: Date.now(),
+        size,
+        mimeType: mimeType ?? undefined,
+        exif,
       };
 
       addEvidence(newEvidence);
       setOcrLoading(false);
+      if (ocrResult.matched) {
+        Alert.alert('OCR validado', 'La evidencia coincide con el objetivo. El score se actualizó.');
+      }
     } catch (err) {
       setOcrLoading(false);
       Alert.alert('Error', 'No se pudo procesar la evidencia.');
     }
   };
 
+  const handleUploadPDF = async () => {
+    if (evidenciasLleno) {
+      Alert.alert('Límite alcanzado', `Podés adjuntar hasta ${MAX_EVIDENCIAS} evidencias.`);
+      return;
+    }
+    try {
+      const resultado = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (resultado.canceled || !resultado.assets?.[0]) return;
+
+      const asset = resultado.assets[0];
+      const validacion = validarArchivo(
+        { uri: asset.uri, name: asset.name, mimeType: asset.mimeType, size: asset.size },
+        evidences.length
+      );
+      if (!validacion.ok) {
+        Alert.alert('Archivo inválido', validacion.error ?? 'No se pudo adjuntar.');
+        return;
+      }
+
+      const url = await subirEvidencia({
+        uri: asset.uri,
+        nombre: asset.name,
+        mimeType: asset.mimeType ?? 'application/pdf',
+      });
+
+      addEvidence({
+        id: `ev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        type: 'other',
+        label: asset.name,
+        uri: url,
+        isMasked: true,
+        timestamp: Date.now(),
+        size: asset.size,
+        mimeType: asset.mimeType ?? 'application/pdf',
+      });
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo adjuntar el documento.');
+    }
+  };
+
   const handleSendReport = async () => {
+    // RG-02: se requiere al menos una evidencia.
+    if (evidences.length === 0) {
+      Alert.alert(
+        'Evidencia requerida',
+        'Adjuntá al menos una captura o comprobante para enviar el reporte.'
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
       const result = await submitReport();
@@ -88,7 +205,20 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
       });
     } catch (error: any) {
       setSubmitting(false);
-      setShowOfflineModal(true);
+      const mensaje = error?.message ?? '';
+      if (mensaje === 'RATE_LIMIT_EXCEEDED') {
+        Alert.alert(
+          'Límite diario alcanzado',
+          'Alcanzaste el máximo de denuncias por día. Volvé a intentarlo mañana.'
+        );
+      } else if (mensaje === 'SPAM_DUPLICADO') {
+        Alert.alert(
+          'Posible duplicado',
+          'Detectamos una denuncia muy similar reciente. Revisá tu reporte antes de enviarlo.'
+        );
+      } else {
+        setShowOfflineModal(true);
+      }
     }
   };
 
@@ -125,7 +255,7 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.largeOutlinedBtn}
             activeOpacity={0.8}
             onPress={() => handleUpload('chat_screenshot')}
-            disabled={ocrLoading}
+            disabled={ocrLoading || evidenciasLleno}
           >
             <View style={styles.iconCircle}>
               <Ionicons name="add" size={24} color="#000000" />
@@ -139,13 +269,27 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
             style={styles.largeOutlinedBtn}
             activeOpacity={0.8}
             onPress={() => handleUpload('bank_receipt')}
-            disabled={ocrLoading}
+            disabled={ocrLoading || evidenciasLleno}
           >
             <View style={styles.iconCircle}>
               <Ionicons name="add" size={24} color="#000000" />
             </View>
             <Text style={styles.btnTitle}>Subir comprobante</Text>
             <Text style={styles.btnSubtitle}>Comprobante bancario oficial de transferencia</Text>
+          </TouchableOpacity>
+
+          {/* Subir PDF / documento */}
+          <TouchableOpacity
+            style={styles.largeOutlinedBtn}
+            activeOpacity={0.8}
+            onPress={handleUploadPDF}
+            disabled={ocrLoading || evidenciasLleno}
+          >
+            <View style={styles.iconCircle}>
+              <Ionicons name="document-attach-outline" size={24} color="#000000" />
+            </View>
+            <Text style={styles.btnTitle}>Subir PDF</Text>
+            <Text style={styles.btnSubtitle}>Documento o comprobante en PDF</Text>
           </TouchableOpacity>
         </View>
 
@@ -160,7 +304,9 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
         {/* Evidencias cargadas */}
         {evidences.length > 0 && (
           <View style={styles.evidencesSection}>
-            <Text style={styles.evidencesTitle}>Evidencias adjuntas ({evidences.length})</Text>
+            <Text style={styles.evidencesTitle}>
+              Evidencias adjuntas ({evidences.length}/{MAX_EVIDENCIAS})
+            </Text>
             {evidences.map((ev) => (
               <View key={ev.id} style={styles.evidenceItem}>
                 <Image source={{ uri: ev.uri }} style={styles.evidenceThumb} />
@@ -183,16 +329,17 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.fixedFooter}>
         <View style={styles.credibilityBox}>
           <Text style={styles.credibilityLabel}>Credibilidad:</Text>
-          <Text style={styles.credibilityPercent}>
-            {evidences.length > 0 ? '80%' : `${credibilityScore}%`}
-          </Text>
+          <Text style={styles.credibilityPercent}>{credibilityScore}%</Text>
         </View>
 
         <TouchableOpacity
-          style={[styles.submitMainBtn, submitting && styles.btnDisabled]}
+          style={[
+            styles.submitMainBtn,
+            (submitting || evidences.length === 0) && styles.btnDisabled,
+          ]}
           activeOpacity={0.88}
           onPress={handleSendReport}
-          disabled={submitting}
+          disabled={submitting || evidences.length === 0}
         >
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" />

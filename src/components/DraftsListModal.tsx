@@ -62,6 +62,15 @@ export const DraftsListModal: React.FC<DraftsListModalProps> = ({
             Almacenados localmente en AsyncStorage ante fallas de red
           </Text>
 
+          {/* RF-057: aviso permanente de que el borrador no es una denuncia enviada */}
+          <View style={styles.draftWarning}>
+            <Ionicons name="information-circle-outline" size={16} color="#92400E" />
+            <Text style={styles.draftWarningText}>
+              Este borrador está guardado solo en tu teléfono. Debe enviarlo para
+              concretar la denuncia.
+            </Text>
+          </View>
+
           {drafts.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="documents-outline" size={48} color="#CBD5E1" />
@@ -161,6 +170,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     marginBottom: 12,
+  },
+  draftWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  draftWarningText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#92400E',
+    lineHeight: 16,
+    fontWeight: '600',
   },
   closeBtn: {
     padding: 4,
