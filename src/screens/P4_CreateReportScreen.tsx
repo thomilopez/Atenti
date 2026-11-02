@@ -6,15 +6,16 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentCategory, LocationData, RootStackParamList } from '../types';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { MapPickerModal } from '../components/MapPickerModal';
 import { useReportFlow } from '../context/ReportFlowContext';
+import { useAuth } from '../context/AuthContext';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { validarCbu, validarCuit, validarTelefonoE164, CATEGORIAS, CategoriaTipo } from '../services/normalize';
 import { listarCategoriasActivas } from '../services/categoryService';
@@ -32,6 +33,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
 const IDENTIFIER_TYPES: IdentifierType[] = ['Alias', 'CBU', 'CUIT', 'Tel', 'Local'];
 
 export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) => {
+  const { isAuthenticated } = useAuth();
   const {
     category,
     setCategory,
@@ -182,19 +184,35 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
     navigation.navigate('P5_OCRValidation');
   };
 
+  const currentCategoryMeta = getCategoryMetadata(category);
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      {/* Barra superior de navegación */}
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.75}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>Crear reporte</Text>
+        <Text style={styles.navTitle} numberOfLines={1}>
+          Crear reporte
+        </Text>
         <TouchableOpacity
           onPress={async () => {
             await saveCurrentDraft();
             Alert.alert('Borrador Guardado', 'Se guardó en el almacenamiento local.');
           }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.75}
           style={styles.saveDraftBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Guardar borrador"
         >
           <Ionicons name="save-outline" size={18} color="#0F172A" />
         </TouchableOpacity>
@@ -255,23 +273,26 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
           )}
         </View>
 
-        {/* Caja desplegable 2: Tipo de Identificador */}
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Tipo de identificador</Text>
-          <TouchableOpacity
-            style={styles.dropdownBox}
-            onPress={() => {
-              setIdentifierDropdownOpen(!identifierDropdownOpen);
-              setCategoryDropdownOpen(false);
-            }}
-          >
-            <Text style={styles.dropdownText}>[{identifierType}]</Text>
-            <Ionicons
-              name={identifierDropdownOpen ? 'chevron-up' : 'chevron-down'}
-              size={18}
-              color="#64748B"
-            />
-          </TouchableOpacity>
+          {/* Caja desplegable 2: Tipo de Identificador */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>Tipo de identificador</Text>
+            <TouchableOpacity
+              style={styles.dropdownBox}
+              activeOpacity={0.8}
+              onPress={() => {
+                setIdentifierDropdownOpen(!identifierDropdownOpen);
+                setCategoryDropdownOpen(false);
+              }}
+              accessibilityRole="combobox"
+              accessibilityLabel="Tipo de identificador"
+            >
+              <Text style={styles.dropdownText}>[{identifierType}]</Text>
+              <Ionicons
+                name={identifierDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color="#64748B"
+              />
+            </TouchableOpacity>
 
           {identifierDropdownOpen && (
             <View style={styles.dropdownOptions}>
@@ -470,7 +491,7 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
         </View>
       </ScrollView>
 
-      {/* Pie de pantalla (Fijo): Panel pegado abajo que diga "Credibilidad: 20%" con botón secundario "Siguiente" */}
+      {/* Pie de pantalla fijo: Barra de credibilidad y botón Siguiente */}
       <View style={styles.fixedFooter}>
         <View style={styles.credibilityBox}>
           <Text style={styles.credibilityLabel}>Credibilidad:</Text>
@@ -520,21 +541,35 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   backBtn: {
-    padding: 4,
+    padding: 6,
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#0F172A',
+    flexShrink: 1,
   },
   saveDraftBtn: {
-    padding: 6,
+    padding: 8,
     borderRadius: 6,
     backgroundColor: '#F1F5F9',
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     padding: 16,
     paddingBottom: 24,
+  },
+  formContainer: {
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
   },
   fieldGroup: {
     marginBottom: 14,
@@ -552,32 +587,75 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 6,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
+    minHeight: 48,
+  },
+  selectedCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  categoryIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dropdownText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#0F172A',
+    flexShrink: 1,
   },
   dropdownOptions: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#000000',
-    borderRadius: 6,
+    borderColor: '#0F172A',
+    borderRadius: 8,
     marginTop: 4,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   optionItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  optionItemCategory: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+    gap: 10,
+    minHeight: 48,
+  },
+  optionItemCategorySelected: {
+    backgroundColor: '#F8FAFC',
+  },
+  optionCategoryTextCol: {
+    flex: 1,
   },
   optionText: {
     fontSize: 13,
     color: '#334155',
+  },
+  optionDescription: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
   },
   optionTextSelected: {
     fontWeight: '800',
@@ -623,22 +701,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#0F172A',
   },
-  // Caja de texto grande (Relato)
   textArea: {
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 6,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
     color: '#0F172A',
-    minHeight: 80,
+    minHeight: 88,
   },
-  // Rectángulo mediano (Mapa para fijar pin)
   mapRectangle: {
-    height: 120,
-    borderRadius: 6,
+    height: 140,
+    borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#CBD5E1',
@@ -662,6 +738,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     marginTop: 4,
+    flexShrink: 1,
   },
   pinRequiredHelp: {
     fontSize: 11,
@@ -773,14 +850,19 @@ const styles = StyleSheet.create({
   },
   // Pie de pantalla (Fijo)
   fixedFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  footerInner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 640,
+    alignSelf: 'center',
   },
   credibilityBox: {
     flexDirection: 'row',
@@ -797,7 +879,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#000000',
   },
-  // Botón secundario "Siguiente"
   nextSecondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -808,10 +889,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 6,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   nextSecondaryBtnText: {
     fontSize: 14,
     fontWeight: '800',
     color: '#000000',
+    flexShrink: 1,
   },
 });

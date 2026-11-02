@@ -3,16 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { VeracityBar } from '../components/VeracityBar';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { AppButton } from '../components/AppButton';
+import { LEGAL_INDEMNITY_EXTRACT } from '../services/legalAudit';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P8_Confirmation'>;
 
@@ -33,53 +34,62 @@ export const P8_ConfirmationScreen: React.FC<Props> = ({ route, navigation }) =>
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Banner superior verde como en el mockup */}
+      {/* Banner superior verde */}
       <View style={styles.topGreenBanner}>
         <Text style={styles.bannerText}>Reporte publicado con éxito</Text>
       </View>
 
       <View style={styles.container}>
-        {/* Cuerpo central: Un círculo grande con un tilde (Check) */}
-        <View style={styles.centerBody}>
-          <View style={styles.checkCircle}>
-            <Ionicons name="checkmark" size={48} color="#FFFFFF" />
+        <View style={styles.responsiveInner}>
+          {/* Cuerpo central: Un círculo grande con un tilde (Check) */}
+          <View style={styles.centerBody}>
+            <View style={styles.checkCircle}>
+              <Ionicons name="checkmark" size={48} color="#FFFFFF" />
+            </View>
+
+            {/* Textos: "Código: AT-2026-XXXX" y "Credibilidad final: 80%" */}
+            <Text style={styles.codeText}>Código: {trackingCode}</Text>
+
+            <View style={styles.scoreContainer}>
+              <Text style={styles.scoreLabel}>Credibilidad final: {finalScore || 80}%</Text>
+              <VeracityBar
+                percentage={finalScore || 80}
+                height={18}
+                showPercentageText={true}
+              />
+            </View>
           </View>
 
-          {/* Textos: "Código: AT-2026-XXXX" y "Credibilidad final: 80%" */}
-          <Text style={styles.codeText}>Código: {trackingCode}</Text>
+          {/* Botones inferiores: "Seguir estado" y "Volver al inicio" */}
+          <View style={styles.bottomButtons}>
+            <AppButton
+              title="Seguir estado"
+              onPress={handleTrackStatus}
+              variant="primary"
+              size="lg"
+              iconRight="arrow-forward"
+            />
 
-          <View style={styles.scoreContainer}>
-            <Text style={styles.scoreLabel}>Credibilidad final: {finalScore || 80}%</Text>
-            <VeracityBar
-              percentage={finalScore || 80}
-              height={18}
-              showPercentageText={true}
+            <AppButton
+              title="Volver al inicio"
+              onPress={handleGoHome}
+              variant="secondary"
+              size="md"
+              iconLeft="home-outline"
             />
           </View>
-        </View>
 
-        {/* Botones inferiores: "Seguir estado" y "Volver al inicio" */}
-        <View style={styles.bottomButtons}>
-          {/* Botón Seguir estado */}
-          <TouchableOpacity
-            style={styles.trackBtn}
-            activeOpacity={0.88}
-            onPress={handleTrackStatus}
-          >
-            <Text style={styles.trackBtnText}>Seguir estado</Text>
-          </TouchableOpacity>
-
-          {/* Botón Volver al inicio */}
-          <TouchableOpacity
-            style={styles.homeBtn}
-            activeOpacity={0.88}
-            onPress={handleGoHome}
-          >
-            <Text style={styles.homeBtnText}>Volver al inicio</Text>
-          </TouchableOpacity>
+          {/* Extracto de Indemnidad Legal (T06 / RNF3 / Etapa 2 §8) */}
+          <View style={styles.indemnityCard}>
+            <View style={styles.indemnityHeader}>
+              <Ionicons name="shield-checkmark" size={14} color="#0F172A" />
+              <Text style={styles.indemnityTitle}>Indemnidad Legal</Text>
+            </View>
+            <Text style={styles.indemnityText}>{LEGAL_INDEMNITY_EXTRACT}</Text>
+          </View>
         </View>
       </View>
 
@@ -109,6 +119,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     justifyContent: 'space-between',
     paddingVertical: 24,
+  },
+  responsiveInner: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    justifyContent: 'space-between',
   },
   centerBody: {
     flex: 1,
@@ -176,5 +193,33 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+  },
+  indemnityCard: {
+    marginTop: 20,
+    marginHorizontal: 8,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  indemnityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  indemnityTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  indemnityText: {
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#64748B',
+    textAlign: 'justify',
   },
 });

@@ -4,14 +4,15 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { DraftsListModal } from '../components/DraftsListModal';
+import { AppButton } from '../components/AppButton';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P7_OfflineModal'>;
 
@@ -34,7 +35,7 @@ export const P7_OfflineModal: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="rgba(0, 0, 0, 0.75)" />
 
       {/* Pantalla P5 oscurecida de fondo */}
@@ -66,23 +67,23 @@ export const P7_OfflineModal: React.FC<Props> = ({ navigation }) => {
 
           {/* Botones del Modal */}
           <View style={styles.actionsGroup}>
-            {/* Botón "Reintentar" */}
-            <TouchableOpacity
-              style={styles.retryBtn}
-              activeOpacity={0.88}
+            <AppButton
+              title="Reintentar"
               onPress={handleRetry}
-            >
-              <Text style={styles.retryBtnText}>Reintentar</Text>
-            </TouchableOpacity>
+              variant="primary"
+              size="md"
+              iconLeft="refresh-outline"
+              style={styles.retryBtn}
+            />
 
-            {/* Botón "Ver Mis Borradores" */}
-            <TouchableOpacity
-              style={styles.draftsBtn}
-              activeOpacity={0.88}
+            <AppButton
+              title="Ver Mis Borradores"
               onPress={() => setShowDraftsList(true)}
-            >
-              <Text style={styles.draftsBtnText}>Ver Mis Borradores</Text>
-            </TouchableOpacity>
+              variant="secondary"
+              size="md"
+              iconLeft="folder-outline"
+              style={styles.draftsBtn}
+            />
           </View>
         </View>
       </View>
