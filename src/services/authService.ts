@@ -9,13 +9,17 @@
  * devuelve un resultado simulado para no romper el flujo del MVP.
  */
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getAuth,
+  initializeAuth,
   GoogleAuthProvider,
   signInWithCredential,
   signOut as firebaseSignOut,
   User as FirebaseUser,
 } from 'firebase/auth';
+import * as FirebaseAuth from 'firebase/auth';
 import { app, isFirebaseConfigured } from './firebase';
 import { env } from './env';
 import {
@@ -24,7 +28,36 @@ import {
   ResultadoVerificacionDNI,
 } from './renaperProvider';
 
-export const auth = getAuth(app);
+function crearAuth() {
+  if (Platform.OS === 'web') {
+    return getAuth(app);
+  }
+  // `getReactNativePersistence` existe en el build RN de Firebase, pero no en
+  // los tipos de `firebase/auth`. Se resuelve en runtime con un cast.
+  const mod = FirebaseAuth as unknown as {
+    getReactNativePersistence?: (storage: unknown) => unknown;
+  };
+  if (mod.getReactNativePersistence) {
+    try {
+      return initializeAuth(app, {
+        persistence: mod.getReactNativePersistence(AsyncStorage) as never,
+      });
+    } catch {
+      // Ya inicializado (por ejemplo, hot reload).
+      return getAuth(app);
+    }
+  }
+  return getAuth(app);
+}
+
+export const auth = crearAuth();
+
+/** true cuando la app corre dentro de Expo Go (sin modulos nativos). */
+function esExpoGo(): boolean {
+  return (
+    (Constants as unknown as { appOwnership?: string | null }).appOwnership === 'expo'
+  );
+}
 
 export interface SesionUsuario {
   uid: string;
@@ -55,6 +88,13 @@ export async function signInWithGoogle(): Promise<SesionUsuario> {
       email: 'usuario.atenti@gmail.com',
       displayName: 'Usuario Atenti Verificado',
     };
+  }
+
+  // Expo Go no incluye el modulo nativo de Google Sign-In.
+  if (esExpoGo()) {
+    throw new Error(
+      'Google Sign-In requiere un development build (no funciona en Expo Go).'
+    );
   }
 
   // Import dinámico: solo se carga cuando hay credenciales reales configuradas.
