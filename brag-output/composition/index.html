@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="es" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atenti — La comunidad que te avisa antes del fraude</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111c33;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #dc2626;
+        --green: #00e676;
+        --card: #f8fafc;
+        --card-text: #0f172a;
+        --line: #cbd5e1;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--bg);
+        font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: var(--text);
+      }
+
+      #main-composition {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      .clip {
+        position: absolute;
+        inset: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+      }
+
+      .scene {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .eyebrow {
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 28px;
+      }
+
+      /* ---------------- Scene 1: Hook ---------------- */
+      .alert-ring {
+        position: absolute;
+        width: 760px;
+        height: 760px;
+        border-radius: 50%;
+        border: 6px solid rgba(220, 38, 38, 0.55);
+        box-shadow: 0 0 120px rgba(220, 38, 38, 0.35) inset,
+          0 0 120px rgba(220, 38, 38, 0.25);
+        opacity: 0.75;
+      }
+
+      .hook-wrap {
+        position: relative;
+        z-index: 2;
+        padding: 0 90px;
+      }
+
+      .hook {
+        font-size: 118px;
+        line-height: 1.04;
+        font-weight: 900;
+        letter-spacing: -4px;
+        color: var(--text);
+        margin: 0;
+      }
+
+      .hook em {
+        color: var(--accent);
+        font-style: normal;
+      }
+
+      .hook-sub {
+        margin: 34px 0 0;
+        font-size: 44px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      /* ---------------- Scene 2: Brand ---------------- */
+      .logo-card {
+        width: 880px;
+        height: 300px;
+        border-radius: 48px;
+        background: var(--card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.45);
+      }
+
+      .icon-lockup {
+        width: 780px;
+        height: 232px;
+        display: block;
+      }
+
+      .icon-lockup.small {
+        width: 560px;
+        height: 166px;
+      }
+
+      .tagline {
+        margin: 42px 0 0;
+        max-width: 760px;
+        font-size: 40px;
+        line-height: 1.25;
+        font-weight: 500;
+        color: var(--muted);
+      }
+
+      .red-line {
+        margin-top: 44px;
+        width: 220px;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--accent);
+        transform-origin: left center;
+      }
+
+      /* ---------------- Phone cards ---------------- */
+      .phone {
+        width: 860px;
+        background: var(--card);
+        color: var(--card-text);
+        border-radius: 56px;
+        padding: 44px;
+        box-shadow: 0 50px 140px rgba(0, 0, 0, 0.5);
+        text-align: left;
+      }
+
+      .phone-title {
+        font-size: 34px;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+        color: var(--card-text);
+        margin: 0 0 26px;
+      }
+
+      .search-bar {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        height: 96px;
+        border-radius: 26px;
+        border: 3px solid var(--line);
+        background: #ffffff;
+        padding: 0 26px;
+      }
+
+      .search-icon {
+        font-size: 42px;
+        line-height: 1;
+        color: #64748b;
+      }
+
+      .typed-wrap {
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      .typed {
+        font-size: 40px;
+        font-weight: 700;
+        color: var(--card-text);
+      }
+
+      .caret {
+        display: inline-block;
+        width: 4px;
+        height: 46px;
+        background: var(--accent);
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin: 26px 0 0;
+      }
+
+      .chip {
+        font-size: 28px;
+        font-weight: 700;
+        color: #475569;
+        background: #f1f5f9;
+        border: 2px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 10px 22px;
+      }
+
+      .chip.active {
+        background: var(--card-text);
+        border-color: var(--card-text);
+        color: #ffffff;
+      }
+
+      .result-card {
+        margin-top: 32px;
+        background: #f1f5f9;
+        border: 2px solid #e2e8f0;
+        border-radius: 26px;
+        padding: 30px;
+      }
+
+      .result-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .result-title {
+        font-size: 38px;
+        font-weight: 900;
+        color: var(--card-text);
+      }
+
+      .dot {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+      }
+
+      .dot.green {
+        background: #00c853;
+        box-shadow: 0 0 24px rgba(0, 200, 83, 0.8);
+      }
+
+      .result-meta {
+        margin-top: 8px;
+        font-size: 28px;
+        font-weight: 500;
+        color: #475569;
+      }
+
+      .score-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-top: 28px;
+      }
+
+      .score-label {
+        font-size: 28px;
+        font-weight: 700;
+        color: #475569;
+      }
+
+      .score {
+        font-size: 56px;
+        font-weight: 900;
+        color: #059669;
+        letter-spacing: -1px;
+      }
+
+      .bar {
+        margin-top: 14px;
+        height: 22px;
+        border-radius: 11px;
+        background: #e2e8f0;
+        overflow: hidden;
+      }
+
+      .bar-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 11px;
+        background: #00c853;
+      }
+
+      .scene-label {
+        position: absolute;
+        bottom: 154px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 34px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      /* ---------------- Scene 4: report ---------------- */
+      .upload-card {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        border: 3px dashed #94a3b8;
+        border-radius: 26px;
+        padding: 34px;
+        margin-top: 8px;
+        background: #ffffff;
+      }
+
+      .upload-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 32px;
+        background: var(--card-text);
+        color: #ffffff;
+        font-size: 42px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+
+      .upload-text {
+        font-size: 34px;
+        font-weight: 800;
+        color: var(--card-text);
+      }
+
+      .ocr-card {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: 26px;
+        background: #ecfdf5;
+        border: 2px solid #86efac;
+        border-radius: 22px;
+        padding: 26px 28px;
+      }
+
+      .check {
+        width: 54px;
+        height: 54px;
+        border-radius: 27px;
+        background: #047857;
+        color: #ffffff;
+        font-size: 34px;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ocr-text {
+        flex: 1;
+        font-size: 30px;
+        font-weight: 800;
+        color: #065f46;
+      }
+
+      .ocr-badge {
+        font-size: 28px;
+        font-weight: 800;
+        color: #047857;
+        background: #d1fae5;
+        border-radius: 12px;
+        padding: 8px 16px;
+      }
+
+      .map-pin-row {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: 30px;
+      }
+
+      .pin {
+        width: 46px;
+        height: 46px;
+        border-radius: 50% 50% 50% 0;
+        background: var(--accent);
+        transform: rotate(-45deg);
+        box-shadow: 0 0 30px rgba(220, 38, 38, 0.55);
+      }
+
+      .pin-text {
+        font-size: 28px;
+        font-weight: 700;
+        color: #475569;
+      }
+
+      /* ---------------- Scene 5: outro ---------------- */
+      .stories-badge {
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: var(--text);
+        background: rgba(220, 38, 38, 0.16);
+        border: 2px solid rgba(220, 38, 38, 0.55);
+        border-radius: 18px;
+        padding: 16px 28px;
+      }
+
+      .outro {
+        margin: 42px 0 0;
+        font-size: 108px;
+        line-height: 1.05;
+        font-weight: 900;
+        letter-spacing: -4px;
+        color: var(--text);
+      }
+
+      .outro em {
+        color: var(--accent);
+        font-style: normal;
+      }
+
+      .logo-plate {
+        width: 620px;
+        height: 210px;
+        border-radius: 34px;
+        background: var(--card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 54px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+      }
+
+      .red-line-2 {
+        margin-top: 30px;
+        width: 260px;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--accent);
+        transform-origin: center center;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="main-composition"
+      data-composition-id="main-video"
+      data-width="1080"
+      data-height="1920"
+      data-start="0"
+      data-duration="20"
+    >
+      <audio
+        id="music"
+        data-start="0"
+        data-duration="20"
+        data-track-index="10"
+        data-volume="0.8"
+        src="assets/music/happy-beats-business-moves-vol-9-by-ende-dot-app.mp3"
+      ></audio>
+
+      <audio id="sfx-hook" data-start="0.05" data-duration="0.18" data-track-index="11" data-volume="0.65" src="assets/sfx/impact/impactSoft_medium_001.ogg"></audio>
+      <audio id="sfx-logo" data-start="3.15" data-duration="0.14" data-track-index="12" data-volume="0.6" src="assets/sfx/impact/impactSoft_medium_002.ogg"></audio>
+      <audio id="sfx-key-1" data-start="6.35" data-duration="0.25" data-track-index="13" data-volume="0.55" src="assets/sfx/keyboard/keypress-001.wav"></audio>
+      <audio id="sfx-key-2" data-start="6.5" data-duration="0.25" data-track-index="14" data-volume="0.55" src="assets/sfx/keyboard/keypress-005.wav"></audio>
+      <audio id="sfx-key-3" data-start="6.65" data-duration="0.25" data-track-index="15" data-volume="0.55" src="assets/sfx/keyboard/keypress-009.wav"></audio>
+      <audio id="sfx-key-4" data-start="6.8" data-duration="0.25" data-track-index="16" data-volume="0.55" src="assets/sfx/keyboard/keypress-013.wav"></audio>
+      <audio id="sfx-key-5" data-start="6.95" data-duration="0.25" data-track-index="17" data-volume="0.55" src="assets/sfx/keyboard/keypress-017.wav"></audio>
+      <audio id="sfx-result" data-start="7.35" data-duration="0.19" data-track-index="18" data-volume="0.65" src="assets/sfx/interface/drop_002.ogg"></audio>
+      <audio id="sfx-score" data-start="7.7" data-duration="0.06" data-track-index="19" data-volume="0.55" src="assets/sfx/ui/click2.ogg"></audio>
+      <audio id="sfx-ocr" data-start="12.05" data-duration="0.65" data-track-index="20" data-volume="0.6" src="assets/sfx/impact/impactBell_heavy_003.ogg"></audio>
+      <audio id="sfx-pin" data-start="13.05" data-duration="0.11" data-track-index="21" data-volume="0.5" src="assets/sfx/interface/drop_001.ogg"></audio>
+      <audio id="sfx-outro" data-start="17.35" data-duration="1.48" data-track-index="22" data-volume="0.7" src="assets/sfx/impact/impactBell_heavy_000.ogg"></audio>
+
+      <!-- Scene 1: Hook -->
+      <section id="scene-1" class="clip scene scene-1" data-start="0" data-duration="3" data-track-index="1">
+        <div class="alert-ring"></div>
+        <div class="hook-wrap">
+          <h1 class="hook">¿Te están<br />por <em>estafar</em>?</h1>
+          <p class="hook-sub">Antes de transferir, chequeá.</p>
+        </div>
+      </section>
+
+      <!-- Scene 2: Brand -->
+      <section id="scene-2" class="clip scene scene-2" data-start="3" data-duration="3" data-track-index="2">
+        <div class="logo-card">
+          <svg class="icon-lockup" viewBox="30 370 964 286" role="img" aria-label="Atenti">
+            <image href="assets/icon.png" width="1024" height="1024" data-layout-allow-overflow />
+          </svg>
+        </div>
+        <p class="tagline">La comunidad que te avisa.</p>
+        <div class="red-line"></div>
+      </section>
+
+      <!-- Scene 3: Search -->
+      <section id="scene-3" class="clip scene scene-3" data-start="6" data-duration="5" data-track-index="3">
+        <div class="phone search-phone">
+          <p class="phone-title">Buscá antes de transferir</p>
+          <div class="search-bar">
+            <span class="search-icon">⌕</span>
+            <div class="typed-wrap">
+              <span class="typed">ju.mp</span><span class="caret"></span>
+            </div>
+          </div>
+          <div class="chips">
+            <span class="chip active">Alias</span>
+            <span class="chip">CBU</span>
+            <span class="chip">CUIT</span>
+            <span class="chip">Tel</span>
+            <span class="chip">Local</span>
+          </div>
+          <div class="result-card">
+            <div class="result-top">
+              <span class="result-title">Alias: ju.mp</span>
+              <span class="dot green"></span>
+            </div>
+            <div class="result-meta">Estafa Bancaria · 3 reportes</div>
+            <div class="score-row">
+              <span class="score-label">Credibilidad</span>
+              <span class="score">80%</span>
+            </div>
+            <div class="bar"><div class="bar-fill bar-fill-1"></div></div>
+          </div>
+        </div>
+        <p class="scene-label">Alias · CBU · CUIT · Tel · Local</p>
+      </section>
+
+      <!-- Scene 4: Report -->
+      <section id="scene-4" class="clip scene scene-4" data-start="11" data-duration="5" data-track-index="4">
+        <div class="phone report-phone">
+          <p class="phone-title">Reportá con evidencias</p>
+          <div class="upload-card">
+            <span class="upload-icon">+</span>
+            <span class="upload-text">Subir comprobante</span>
+          </div>
+          <div class="ocr-card">
+            <span class="check">✓</span>
+            <span class="ocr-text">OCR validado</span>
+            <span class="ocr-badge">CBU coincide</span>
+          </div>
+          <div class="score-row">
+            <span class="score-label">Credibilidad</span>
+            <span class="score">80%</span>
+          </div>
+          <div class="bar"><div class="bar-fill bar-fill-2"></div></div>
+          <div class="map-pin-row">
+            <span class="pin"></span>
+            <span class="pin-text">Alertas cerca de vos</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scene 5: Outro -->
+      <section id="scene-5" class="clip scene scene-5" data-start="16" data-duration="4" data-track-index="5">
+        <div class="stories-badge">Historias de estafas de la comunidad</div>
+        <h1 class="outro">Antes de caer,<br /><em>Atenti.</em></h1>
+        <div class="logo-plate">
+          <svg class="icon-lockup small" viewBox="30 370 964 286" role="img" aria-label="Atenti">
+            <image href="assets/icon.png" width="1024" height="1024" data-layout-allow-overflow />
+          </svg>
+        </div>
+        <div class="red-line-2"></div>
+      </section>
+
+      <script>
+        (function () {
+          const tl = gsap.timeline({ paused: true });
+
+          // Scene 1: hook (0-3s)
+          gsap.set(".scene-1 .alert-ring", { scale: 0.9, opacity: 0 });
+          gsap.set(".scene-1 .hook", { y: 0, opacity: 1 });
+          gsap.set(".scene-1 .hook-sub", { y: 40, opacity: 0 });
+
+          tl.to(".scene-1 .alert-ring", { scale: 1, opacity: 0.75, duration: 1.1, ease: "power2.out" }, 0.15);
+          tl.to(".scene-1 .alert-ring", { scale: 1.06, opacity: 0.45, duration: 1.2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 1.3);
+          tl.fromTo(".scene-1 .hook", { scale: 0.96 }, { scale: 1, duration: 1.0, ease: "power2.out" }, 0);
+          tl.to(".scene-1 .hook-sub", { y: 0, opacity: 1, duration: 0.7, ease: "power2.out" }, 0.9);
+
+          // Scene 2: brand (3-6s)
+          gsap.set(".scene-2 .logo-card", { scale: 0.86, opacity: 0, y: 30 });
+          gsap.set(".scene-2 .tagline", { opacity: 0 });
+          gsap.set(".scene-2 .red-line", { scaleX: 0 });
+
+          tl.to(".scene-2 .logo-card", { scale: 1, opacity: 1, y: 0, duration: 0.7, ease: "back.out(1.5)" }, 3.15);
+          tl.to(".scene-2 .tagline", { opacity: 1, duration: 0.6, ease: "power2.out" }, 3.6);
+          tl.to(".scene-2 .red-line", { scaleX: 1, duration: 0.6, ease: "power2.inOut" }, 4.35);
+
+          // Scene 3: search (6-11s)
+          gsap.set(".scene-3 .typed-wrap", { maxWidth: 0 });
+          gsap.set(".scene-3 .chips .chip", { opacity: 0, y: 16 });
+          gsap.set(".scene-3 .result-card", { opacity: 0, y: 44 });
+          gsap.set(".scene-3 .bar-fill-1", { width: "0%" });
+
+          tl.to(".scene-3 .typed-wrap", { maxWidth: 260, duration: 0.9, ease: "steps(6)" }, 6.35);
+          tl.to(".scene-3 .chips .chip", { opacity: 1, y: 0, duration: 0.35, stagger: 0.08, ease: "power2.out" }, 6.1);
+          tl.to(".scene-3 .result-card", { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 7.35);
+          tl.to(".scene-3 .bar-fill-1", { width: "80%", duration: 0.9, ease: "power2.out" }, 7.7);
+
+          // Scene 4: report (11-16s)
+          gsap.set(".scene-4 .report-phone", { opacity: 0, y: 44 });
+          gsap.set(".scene-4 .upload-card", { opacity: 0, y: 24 });
+          gsap.set(".scene-4 .ocr-card", { opacity: 0, scale: 0.94 });
+          gsap.set(".scene-4 .bar-fill-2", { width: "0%" });
+          gsap.set(".scene-4 .map-pin-row", { opacity: 0 });
+
+          tl.to(".scene-4 .report-phone", { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 11.15);
+          tl.to(".scene-4 .upload-card", { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 11.45);
+          tl.to(".scene-4 .ocr-card", { opacity: 1, scale: 1, duration: 0.55, ease: "back.out(1.5)" }, 12.05);
+          tl.to(".scene-4 .bar-fill-2", { width: "80%", duration: 0.9, ease: "power2.out" }, 12.45);
+          tl.to(".scene-4 .map-pin-row", { opacity: 1, duration: 0.5, ease: "power2.out" }, 13.05);
+
+          // Scene 5: outro (16-20s)
+          gsap.set(".scene-5 .stories-badge", { opacity: 0, y: 20 });
+          gsap.set(".scene-5 .outro", { opacity: 0, y: 50 });
+          gsap.set(".scene-5 .logo-plate", { opacity: 0, scale: 0.9 });
+          gsap.set(".scene-5 .red-line-2", { scaleX: 0 });
+
+          tl.to(".scene-5 .stories-badge", { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 16.2);
+          tl.to(".scene-5 .outro", { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 16.75);
+          tl.to(".scene-5 .logo-plate", { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.5)" }, 17.35);
+          tl.to(".scene-5 .red-line-2", { scaleX: 1, duration: 0.5, ease: "power2.inOut" }, 17.6);
+
+          window.__timelines = window.__timelines || {};
+          window.__timelines["main-video"] = tl;
+        })();
+      </script>
+    </div>
+  </body>
+</html>
