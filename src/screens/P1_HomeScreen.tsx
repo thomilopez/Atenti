@@ -9,6 +9,7 @@ import {
   StatusBar,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -129,31 +130,35 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <View style={[styles.header, { paddingHorizontal: gutter }]}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandMini}>
-            <Ionicons name="shield-checkmark" size={18} color="#FFFFFF" />
+      {/* En web la marca Atenti + notificaciones + borradores viven en la
+          barra fusionada del BottomNavBar; este header es solo para nativo. */}
+      {Platform.OS !== 'web' && (
+        <View style={[styles.header, { paddingHorizontal: gutter }]}>
+          <View style={styles.brandRow}>
+            <View style={styles.brandMini}>
+              <Ionicons name="shield-checkmark" size={18} color="#FFFFFF" />
+            </View>
+            <Text style={styles.brandName}>Atenti</Text>
+            <View style={styles.brandSpacer} />
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => navigation.navigate('P19_NotificationCenter')}
+              accessibilityRole="button"
+              accessibilityLabel="Notificaciones"
+            >
+              <Ionicons name="notifications-outline" size={20} color="#0F172A" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => setShowDraftsModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Borradores"
+            >
+              <Ionicons name="folder-outline" size={20} color="#0F172A" />
+            </TouchableOpacity>
           </View>
-          <Text style={styles.brandName}>Atenti</Text>
-          <View style={styles.brandSpacer} />
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => navigation.navigate('P19_NotificationCenter')}
-            accessibilityRole="button"
-            accessibilityLabel="Notificaciones"
-          >
-            <Ionicons name="notifications-outline" size={20} color="#0F172A" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => setShowDraftsModal(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Borradores"
-          >
-            <Ionicons name="folder-outline" size={20} color="#0F172A" />
-          </TouchableOpacity>
         </View>
-      </View>
+      )}
 
       <ScrollView
         contentContainerStyle={[
