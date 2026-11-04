@@ -65,6 +65,11 @@ export interface SesionUsuario {
   displayName: string;
   photoURL?: string;
   phoneNumber?: string;
+  /**
+   * true cuando la sesión no viene de Google (fallback anónimo en Expo Go).
+   * Sirve para no otorgar el factor de identidad `googleAuth` (+15 pts).
+   */
+  anonima?: boolean;
 }
 
 function mapearUsuario(u: FirebaseUser): SesionUsuario {
@@ -90,11 +95,33 @@ export async function signInWithGoogle(): Promise<SesionUsuario> {
     };
   }
 
-  // Expo Go no incluye el modulo nativo de Google Sign-In.
+  // Expo Go no incluye el modulo nativo de Google Sign-In. En su lugar se
+  // crea una sesion anonima de Firebase: las reglas de Firestore aceptan
+  // cualquier `request.auth != null`, asi que el usuario puede crear reportes
+  // desde el celular sin Google. El factor `googleAuth` NO se otorga (ver
+  // AuthContext.aPerfil) para no inflar el puntaje de credibilidad RG-07.
   if (esExpoGo()) {
-    throw new Error(
-      'Google Sign-In requiere un development build (no funciona en Expo Go).'
-    );
+    try {
+      const { signInAnonymously } = await import('firebase/auth');
+      const respuesta = await signInAnonymously(auth);
+      return { ...mapearUsuario(respuesta.user), anonima: true };
+    } catch (e: unknown) {
+      const mensaje = e instanceof Error ? e.message : String(e);
+      throw new Error(
+        `No se pudo iniciar sesión en Expo Go (Google Sign-In no está disponible). Detalle: ${mensaje}`
+      );
+    }
+  }
+
+  // Web: el modulo nativo no existe; se usa el flujo popup de Firebase Auth
+  // (la app web ya esta registrada en la consola de Firebase).
+  if (Platform.OS === 'web') {
+    const { signInWithPopup } = await import('firebase/auth');
+    const respuesta = await signInWithPopup(auth, new GoogleAuthProvider());
+    if (!respuesta.user) {
+      throw new Error('Se canceló el inicio de sesión con Google');
+    }
+    return mapearUsuario(respuesta.user);
   }
 
   // Import dinámico: solo se carga cuando hay credenciales reales configuradas.

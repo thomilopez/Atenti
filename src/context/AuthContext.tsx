@@ -45,7 +45,8 @@ function aPerfil(sesion: SesionUsuario): UserProfile {
     displayName: sesion.displayName,
     photoURL: sesion.photoURL,
     phoneNumber: sesion.phoneNumber,
-    identityFactors: { ...FACTORES_VACIOS, googleAuth: true },
+    // Sesión anónima (fallback Expo Go): no se otorga el factor Google (+15 pts).
+    identityFactors: { ...FACTORES_VACIOS, googleAuth: !sesion.anonima },
   };
 }
 

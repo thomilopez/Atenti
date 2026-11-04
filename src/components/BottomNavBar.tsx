@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,7 +13,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, webContainer]}>
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => navigation.navigate('P1_Home')}
@@ -81,6 +81,23 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab = 'home' }
     </View>
   );
 };
+
+/**
+ * En web el navbar se muestra arriba: `order: -1` lo mueve al inicio del
+ * contenedor flex (react-native-web sí compila la propiedad CSS `order`,
+ * verificado en createReactDOMStyle). El borde pasa a ser inferior para
+ * quedar hacia el contenido. En nativo es `null` y no tiene efecto.
+ */
+const webContainer = (
+  Platform.OS === 'web'
+    ? {
+        order: -1,
+        borderTopWidth: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+      }
+    : null
+) as ViewStyle | null;
 
 const styles = StyleSheet.create({
   container: {

@@ -8,6 +8,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
 import type { PublicIncidentProjection } from './masking';
 import type { FilaDataset } from './adminService';
 
@@ -44,7 +45,26 @@ async function compartir(uri: string, mimeType: string, titulo: string): Promise
   }
 }
 
+/**
+ * Descarga un archivo en el navegador (no hay FileSystem ni Share en web).
+ */
+function descargarEnWeb(contenido: string, nombreArchivo: string, mimeType: string): void {
+  const blob = new Blob([contenido], { type: `${mimeType};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = nombreArchivo;
+  document.body.appendChild(enlace);
+  enlace.click();
+  document.body.removeChild(enlace);
+  URL.revokeObjectURL(url);
+}
+
 export async function exportarCSV(nombreArchivo: string, csv: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    descargarEnWeb(csv, nombreArchivo, 'text/csv');
+    return;
+  }
   const uri = `${FileSystem.cacheDirectory}${nombreArchivo}`;
   await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
   await compartir(uri, 'text/csv', 'Compartir exportación');
@@ -77,6 +97,23 @@ export async function exportarFichaPDF(proyeccion: PublicIncidentProjection): Pr
       </body>
     </html>
   `;
+  // En web, expo-print solo hace window.print() y no devuelve un URI:
+  // abrimos el HTML en una ventana aparte y lanzamos el diálogo de impresión
+  // (el usuario puede guardar como PDF).
+  if (Platform.OS === 'web') {
+    const ventana = window.open('', '_blank');
+    if (ventana) {
+      ventana.document.open();
+      ventana.document.write(html);
+      ventana.document.close();
+      ventana.focus();
+      ventana.print();
+    } else {
+      throw new Error('El navegador bloqueó la ventana de impresión.');
+    }
+    return hash;
+  }
+
   const { uri } = await Print.printToFileAsync({ html });
   await compartir(uri, 'application/pdf', 'Compartir ficha');
   return hash;
