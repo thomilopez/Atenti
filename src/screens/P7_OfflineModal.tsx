@@ -35,7 +35,7 @@ export const P7_OfflineModal: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="rgba(0, 0, 0, 0.75)" />
+      <StatusBar barStyle="light-content" />
 
       {/* Pantalla P5 oscurecida de fondo */}
       <View style={styles.dimmedBackground}>

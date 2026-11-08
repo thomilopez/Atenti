@@ -49,7 +49,9 @@ export default function App() {
             <View style={styles.root}>
               <OfflineBanner />
               <AppNavigator />
-              {!introFinished && <SplashScreen onFinish={finishIntro} />}
+              {!introFinished && (
+                <SplashScreen onFinish={finishIntro} ready={fontsReady} />
+              )}
               {introFinished && !fontsReady && (
                 <SplashBackground style={StyleSheet.absoluteFill}>
                   <LoadingIndicator />

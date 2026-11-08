@@ -53,7 +53,7 @@ export const P0_WelcomeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" />
       <View style={[styles.container, { paddingHorizontal: gutter }]}>
         <Animated.View
           style={[

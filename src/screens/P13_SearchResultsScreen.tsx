@@ -226,7 +226,7 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
               <Ionicons name="search-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyText}>Sin resultados</Text>
             </View>
-          ) : null
+          ) : undefined
         }
       />
 

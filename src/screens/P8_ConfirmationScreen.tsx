@@ -34,7 +34,7 @@ export const P8_ConfirmationScreen: React.FC<Props> = ({ route, navigation }) =>
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Banner superior verde como en el mockup */}
       <View style={styles.topGreenBanner}>

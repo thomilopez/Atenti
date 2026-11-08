@@ -128,7 +128,7 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" />
 
       {/* En web la marca Atenti + notificaciones + borradores viven en la
           barra fusionada del BottomNavBar; este header es solo para nativo. */}
