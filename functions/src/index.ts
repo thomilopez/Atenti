@@ -10,6 +10,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 
@@ -34,6 +35,9 @@ export function extraerIdentificador(texto: string): string | null {
   const alias = texto.match(/\balias[:\s]+([a-z0-9.\-_]{6,20})\b/i);
   if (alias) return alias[1].toLowerCase();
 
+  const telefono = texto.replace(/[\s().-]/g, '').match(/(?:\+?54)?9?\d{10}/);
+  if (telefono) return telefono[0];
+
   return null;
 }
 
@@ -49,8 +53,20 @@ export const processEvidenceOCR = onCall(async (request) => {
     expectedValue?: string;
   };
 
+  if (!request.auth?.uid) {
+    throw new HttpsError('unauthenticated', 'Se requiere sesión para procesar evidencias');
+  }
   if (!imageBase64) {
     throw new HttpsError('invalid-argument', 'Falta imageBase64');
+  }
+  if (imageBase64.length > 14_000_000) {
+    throw new HttpsError('invalid-argument', 'La imagen supera el límite de 10MB');
+  }
+  if (!['Alias', 'CBU', 'CUIT', 'Tel', 'Local'].includes(String(expectedType))) {
+    throw new HttpsError('invalid-argument', 'Tipo de identificador inválido');
+  }
+  if (!expectedValue) {
+    throw new HttpsError('invalid-argument', 'Falta expectedValue');
   }
 
   const client = new ImageAnnotatorClient();
@@ -294,4 +310,66 @@ export const enviarPushNotificacion = onDocumentCreated('notificaciones/{id}', a
   } catch (e) {
     console.warn('enviarPushNotificacion: error de envío', e);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Cuenta y roles (Ley 25.326 y RF-015)
+// ---------------------------------------------------------------------------
+
+async function borrarDocumentosPorUid(coleccion: string, uid: string): Promise<void> {
+  const snap = await db.collection(coleccion).where('uid', '==', uid).get();
+  if (snap.empty) return;
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+}
+
+/** Elimina la cuenta de Auth y anonimiza/elimina los datos personales. */
+export const eliminarCuenta = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Se requiere sesión');
+
+  const denuncias = await db.collection('denuncias').where('audit.uid', '==', uid).get();
+  if (!denuncias.empty) {
+    const batch = db.batch();
+    denuncias.docs.forEach((d) =>
+      batch.update(d.ref, {
+        eliminada: true,
+        'audit.uid': 'anonimo',
+        'audit.userEmail': '',
+        anonimizadaEn: FieldValue.serverTimestamp(),
+      })
+    );
+    await batch.commit();
+  }
+
+  for (const coleccion of [
+    'notificaciones',
+    'push_tokens',
+    'notification_prefs',
+    'terminos_aceptados',
+    'historialScore',
+  ]) {
+    await borrarDocumentosPorUid(coleccion, uid);
+  }
+
+  await db.collection('usuarios').doc(uid).delete();
+  await getAuth().deleteUser(uid);
+  return { ok: true };
+});
+
+/** Asigna el rol U0/U1/U4 mediante custom claims. Solo un admin puede hacerlo. */
+export const setRolUsuario = onCall(async (request) => {
+  const token = request.auth?.token;
+  if (!token || (token.admin !== true && token.rol !== 'U4')) {
+    throw new HttpsError('permission-denied', 'Solo un administrador puede cambiar roles');
+  }
+  const uid = String(request.data?.uid ?? '');
+  const rol = String(request.data?.rol ?? '');
+  if (!uid || !['U0', 'U1', 'U4'].includes(rol)) {
+    throw new HttpsError('invalid-argument', 'uid o rol inválido');
+  }
+  await getAuth().setCustomUserClaims(uid, { rol, admin: rol === 'U4' });
+  await db.collection('usuarios').doc(uid).set({ rol }, { merge: true });
+  return { ok: true };
 });

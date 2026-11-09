@@ -5,7 +5,10 @@
  * errores, conserva la URI local para no romper el flujo.
  */
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { File as FsFile } from 'expo-file-system';
 import { app, isFirebaseConfigured } from './firebase';
+import { AtentiError } from './errors';
+import { MAX_BYTES } from './evidenceService';
 
 export async function subirEvidencia(params: {
   uri: string;
@@ -17,14 +20,20 @@ export async function subirEvidencia(params: {
   }
 
   try {
-    const respuesta = await fetch(params.uri);
-    const blob = await respuesta.blob();
+    const archivo = new FsFile(params.uri);
+    const tamano = (archivo as unknown as { size?: number }).size;
+    if (typeof tamano === 'number' && tamano > MAX_BYTES) {
+      throw new AtentiError('EVIDENCE_TOO_LARGE', 'La evidencia supera los 10MB');
+    }
+    const buffer = await archivo.arrayBuffer();
     const storage = getStorage(app);
     const destino = ref(storage, `evidencias/${Date.now()}_${params.nombre}`);
-    await uploadBytes(destino, blob, { contentType: params.mimeType });
+    await uploadBytes(destino, new Uint8Array(buffer), { contentType: params.mimeType });
     return await getDownloadURL(destino);
   } catch (e) {
-    console.warn('subirEvidencia: fallo la subida, uso URI local:', e);
-    return params.uri;
+    if (e instanceof AtentiError) throw e;
+    throw new AtentiError('STORAGE_UPLOAD_ERROR', 'No se pudo subir la evidencia', {
+      cause: e,
+    });
   }
 }

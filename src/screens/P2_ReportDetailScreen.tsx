@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  Image,
   Modal,
   Alert,
   ActivityIndicator,
@@ -21,6 +20,11 @@ import { useAuth } from '../context/AuthContext';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { toPublicProjection, approximateLocation } from '../services/masking';
+import {
+  getNivel4Color,
+  getNivel4Label,
+  nivelCredibilidad4,
+} from '../services/credibility';
 import { obtenerHistorialScore, EventoScore } from '../services/scoreHistory';
 import { ScoreBreakdown } from '../components/ScoreBreakdown';
 import { useResponsive } from '../hooks/useResponsive';
@@ -41,6 +45,10 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
 
   const proyeccion = useMemo(() => toPublicProjection(incident), [incident]);
   const publicLocation = useMemo(() => approximateLocation(incident.location), [incident]);
+  const score = incident.credibilityScore ?? 0;
+  const nivel = nivelCredibilidad4(score);
+  const nivelColor = getNivel4Color(nivel);
+  const nivelLabel = getNivel4Label(nivel);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'csv' | null>(null);
   const [authHash, setAuthHash] = useState('');
@@ -136,15 +144,10 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Banner de imagen superior como en el mockup */}
         <View style={styles.heroBanner}>
-          <Image
-            source={{
-              uri:
-                incident.evidences[0]?.uri ||
-                'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600',
-            }}
-            style={styles.heroImage}
-            blurRadius={14}
-          />
+          <View style={styles.protectedHero}>
+            <Ionicons name="lock-closed" size={28} color="#94A3B8" />
+            <Text style={styles.protectedText}>Evidencia protegida</Text>
+          </View>
         </View>
 
         {/* Cabecera: Título (ej. "Alias: ju.mp") y un semáforo (un círculo gris oscuro) */}
@@ -153,8 +156,14 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
             <Text style={styles.targetTitle} numberOfLines={1}>
               {incident.title || `${incident.identifierType}: ${incident.identifierValue}`}
             </Text>
-            {/* Semáforo: un círculo gris oscuro */}
-            <View style={styles.trafficLightCircle} />
+            <View
+              style={styles.trafficLightWrap}
+              accessibilityRole="image"
+              accessibilityLabel={`Credibilidad ${nivelLabel}`}
+            >
+              <View style={[styles.trafficLightCircle, { backgroundColor: nivelColor }]} />
+              <Text style={styles.trafficLightLabel}>{nivelLabel}</Text>
+            </View>
           </View>
 
           <Text style={styles.categorySubText}>
@@ -164,7 +173,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
           {/* Barra de porcentaje: Un rectángulo horizontal ancho relleno al 80% */}
           <View style={styles.veracitySection}>
             <VeracityBar
-              percentage={incident.credibilityScore || 80}
+              percentage={score}
               height={18}
               label="Nivel de Veracidad"
             />
@@ -192,36 +201,19 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
         {/* Cuerpo: Debajo 2 cuadrados pequeños para las fotos (Evidencias) */}
         <View style={styles.evidenceSection}>
           <Text style={styles.sectionLabel}>Evidencias</Text>
-          <Text style={styles.maskedNote}>Datos sensibles protegidos con blur</Text>
+          <Text style={styles.maskedNote}>Datos sensibles protegidos</Text>
           <View style={styles.evidenceRow}>
-            {/* Cuadrado 1 */}
             <View style={styles.evidenceSquare}>
-              {incident.evidences[0] ? (
-                <Image
-                  source={{ uri: incident.evidences[0].uri }}
-                  style={styles.squareImage}
-                  blurRadius={14}
-                />
-              ) : (
-                <View style={styles.emptySquarePlaceholder}>
-                  <Ionicons name="image-outline" size={24} color="#94A3B8" />
-                </View>
-              )}
+              <View style={styles.emptySquarePlaceholder}>
+                <Ionicons name="lock-closed-outline" size={24} color="#94A3B8" />
+                <Text style={styles.protectedText}>Protegida</Text>
+              </View>
             </View>
-
-            {/* Cuadrado 2 */}
             <View style={styles.evidenceSquare}>
-              {incident.evidences[1] ? (
-                <Image
-                  source={{ uri: incident.evidences[1].uri }}
-                  style={styles.squareImage}
-                  blurRadius={14}
-                />
-              ) : (
-                <View style={styles.emptySquarePlaceholder}>
-                  <Ionicons name="document-text-outline" size={24} color="#94A3B8" />
-                </View>
-              )}
+              <View style={styles.emptySquarePlaceholder}>
+                <Ionicons name="lock-closed-outline" size={24} color="#94A3B8" />
+                <Text style={styles.protectedText}>Protegida</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -375,13 +367,33 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     flex: 1,
   },
-  // Semáforo: un círculo gris oscuro
+  trafficLightWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 8,
+  },
   trafficLightCircle: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#334155', // Círculo gris oscuro
-    marginLeft: 8,
+  },
+  trafficLightLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  protectedHero: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#E2E8F0',
+  },
+  protectedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94A3B8',
   },
   categorySubText: {
     fontSize: 12,

@@ -28,9 +28,8 @@ export const P19_NotificationCenterScreen: React.FC<Props> = ({ navigation }) =>
 
   const cargar = useCallback(async () => {
     setLoading(true);
-    const propias = await listarNotificaciones(user?.uid);
-    const todas = propias.length > 0 ? propias : await listarNotificaciones();
-    setNotificaciones(todas);
+    const propias = user?.uid ? await listarNotificaciones(user.uid) : [];
+    setNotificaciones(propias);
     setLoading(false);
   }, [user?.uid]);
 

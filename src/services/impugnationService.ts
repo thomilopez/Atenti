@@ -75,7 +75,7 @@ export async function crearImpugnacion(params: {
     throw new Error('El descargo debe tener al menos 20 caracteres.');
   }
 
-  const reporte: IncidentReport | null = obtenerDenuncia(params.denunciaId);
+  const reporte: IncidentReport | null = await obtenerDenuncia(params.denunciaId);
   if (!reporte) throw new Error('Denuncia no encontrada');
 
   // Take-down: PUBLICADA -> EN_DISPUTA (la denuncia sale del buscador).

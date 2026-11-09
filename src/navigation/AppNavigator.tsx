@@ -1,7 +1,11 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import {
+  NavigationContainer,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import { setNotificationTapHandler } from '../services/pushService';
 
 import { P0_WelcomeScreen } from '../screens/P0_WelcomeScreen';
 import { P1_HomeScreen } from '../screens/P1_HomeScreen';
@@ -39,9 +43,24 @@ import { P33_CommunityGuidelinesScreen } from '../screens/P33_CommunityGuideline
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
 export const AppNavigator: React.FC = () => {
+  useEffect(() => {
+    setNotificationTapHandler((data) => {
+      if (!navigationRef.isReady()) return;
+      const denunciaId = typeof data.denunciaId === 'string' ? data.denunciaId : '';
+      if (data.tipo === 'DISPUTA_RESUELTA' && denunciaId) {
+        navigationRef.navigate('P22_DisputeStatus', { denunciaId });
+        return;
+      }
+      navigationRef.navigate('P19_NotificationCenter');
+    });
+    return () => setNotificationTapHandler(null);
+  }, []);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="P0_Welcome"
         screenOptions={{

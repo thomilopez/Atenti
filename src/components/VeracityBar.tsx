@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
+import { getNivel4Color, nivelCredibilidad4 } from '../services/credibility';
 
 interface VeracityBarProps {
   percentage: number;
@@ -16,14 +17,19 @@ export const VeracityBar: React.FC<VeracityBarProps> = ({
 }) => {
   const clamped = Math.max(0, Math.min(100, percentage));
 
-  // Color vibrante verde del diseño Figma
-  const fillColor = '#00E676';
+  const nivel = nivelCredibilidad4(clamped);
+  const fillColor = getNivel4Color(nivel);
 
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
 
-      <View style={styles.barRow}>
+      <View
+        style={styles.barRow}
+        accessibilityRole="progressbar"
+        accessibilityLabel={label ?? 'Nivel de credibilidad'}
+        accessibilityValue={{ min: 0, max: 100, now: clamped }}
+      >
         <View style={[styles.track, { height, borderRadius: 4 }]}>
           <View
             style={[

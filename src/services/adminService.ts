@@ -4,10 +4,11 @@
  * Agrupa el listado de disputas, la resolución, la auditoría completa, la
  * gestión de usuarios, las métricas y la generación del dataset anonimizado.
  */
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, isFirebaseConfigured, actualizarEstadoDenuncia, obtenerDenuncia, getHistorial } from './firebase';
 import { cerrarImpugnacion } from './impugnationService';
 import { IncidentReport } from '../types';
+import type { HistorialEvento } from './stateMachine';
 
 export interface UsuarioAdmin {
   uid: string;
@@ -67,8 +68,8 @@ export async function resolverDisputa(params: {
   actorId: string;
 }): Promise<IncidentReport> {
   const nota = params.nota.trim();
-  if (params.decision === 'RETIRAR' && !nota) {
-    throw new Error('RF-067: retirar la denuncia exige una nota justificativa');
+  if (!nota) {
+    throw new Error('RF-067: resolver la disputa exige una nota justificativa');
   }
   const destino = params.decision === 'MANTENER' ? 'PUBLICADA' : 'RESUELTA';
   const reporte = await actualizarEstadoDenuncia({
@@ -90,11 +91,11 @@ export async function resolverDisputa(params: {
 /** RF-068: auditoría completa de una denuncia. */
 export async function obtenerAuditoria(denunciaId: string): Promise<{
   reporte: IncidentReport | null;
-  historial: ReturnType<typeof getHistorial>;
+  historial: HistorialEvento[];
 }> {
   return {
-    reporte: obtenerDenuncia(denunciaId),
-    historial: getHistorial(denunciaId),
+    reporte: await obtenerDenuncia(denunciaId),
+    historial: await getHistorial(denunciaId),
   };
 }
 
@@ -103,6 +104,18 @@ const suspendidos = new Map<string, boolean>();
 /** RF-070: usuarios derivados de las denuncias, con estado de suspensión. */
 export async function listarUsuarios(): Promise<UsuarioAdmin[]> {
   const todas = await cargarTodas();
+  const remotos = new Map<string, boolean>();
+  if (isFirebaseConfigured) {
+    try {
+      const snap = await getDocs(collection(db, 'usuarios'));
+      snap.forEach((d) => {
+        const data = d.data() as { suspendido?: boolean };
+        remotos.set(d.id, Boolean(data.suspendido));
+      });
+    } catch (e) {
+      console.warn('listarUsuarios: no se pudo leer usuarios:', e);
+    }
+  }
   const mapa = new Map<string, UsuarioAdmin>();
   for (const d of todas) {
     const uid = d.audit.uid;
@@ -114,7 +127,7 @@ export async function listarUsuarios(): Promise<UsuarioAdmin[]> {
         uid,
         email: d.audit.userEmail,
         denuncias: 1,
-        suspendido: suspendidos.get(uid) ?? false,
+        suspendido: remotos.get(uid) ?? suspendidos.get(uid) ?? false,
       });
     }
   }
@@ -132,7 +145,7 @@ export async function cambiarSuspension(uid: string, suspendido: boolean): Promi
         { merge: true }
       );
     } catch (e) {
-      console.warn('cambiarSuspension: Firestore no disponible:', e);
+      throw new Error('No se pudo guardar la suspensión del usuario');
     }
   }
 }
@@ -170,12 +183,12 @@ export async function calcularMetricas(): Promise<MetricasAdmin> {
 /** RF-072: dataset sin datos personales. */
 export async function generarDatasetAnonimizado(): Promise<FilaDataset[]> {
   const todas = await cargarTodas();
-  return todas.map((d) => ({
-    codigo: d.trackingCode,
+  return todas.map((d, index) => ({
+    codigo: `ANON-${index + 1}`,
     categoria: d.category,
     estado: d.estadoActual ?? 'PUBLICADA',
     score: d.credibilityScore,
-    fecha: d.audit.createdAt,
+    fecha: d.audit.createdAt.slice(0, 10),
     localidad: d.location.city ?? '',
   }));
 }

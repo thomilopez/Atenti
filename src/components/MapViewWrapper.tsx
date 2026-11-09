@@ -91,7 +91,31 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
   showHeatmap = false,
 }) => {
   const [activeIncident, setActiveIncident] = useState<IncidentReport | null>(null);
+  const [webLayout, setWebLayout] = useState<{ width: number; height: number } | null>(null);
   const mapRef = useRef<any>(null);
+
+  // Proyeccion simple para el fallback web (area metropolitana de CABA).
+  const bounds = {
+    north: -34.5,
+    south: -34.72,
+    west: -58.53,
+    east: -58.3,
+  };
+  const proyectar = (latitude: number, longitude: number) => {
+    const x = ((longitude - bounds.west) / (bounds.east - bounds.west)) * 100;
+    const y = ((bounds.north - latitude) / (bounds.north - bounds.south)) * 100;
+    return {
+      left: `${Math.max(4, Math.min(96, x))}%` as const,
+      top: `${Math.max(4, Math.min(96, y))}%` as const,
+    };
+  };
+  const desproyectar = (xPct: number, yPct: number) => ({
+    latitude: bounds.north - (yPct / 100) * (bounds.north - bounds.south),
+    longitude: bounds.west + (xPct / 100) * (bounds.east - bounds.west),
+  });
+  const selectedPos = selectedLocation
+    ? proyectar(selectedLocation.latitude, selectedLocation.longitude)
+    : null;
 
   // Reciente el mapa cuando cambia el centro (por ejemplo, "Mi ubicación").
   useEffect(() => {
@@ -165,9 +189,21 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
                   key={cluster.key}
                   coordinate={{ latitude: cluster.latitude, longitude: cluster.longitude }}
                   onPress={() => {
-                    const primero = cluster.items[0];
-                    setActiveIncident(primero);
-                    if (onMarkerPress) onMarkerPress(primero);
+                    const lats = cluster.items.map((i) => i.location.latitude);
+                    const lons = cluster.items.map((i) => i.location.longitude);
+                    const minLat = Math.min(...lats);
+                    const maxLat = Math.max(...lats);
+                    const minLon = Math.min(...lons);
+                    const maxLon = Math.max(...lons);
+                    mapRef.current?.animateToRegion?.(
+                      {
+                        latitude: (minLat + maxLat) / 2,
+                        longitude: (minLon + maxLon) / 2,
+                        latitudeDelta: Math.max(0.01, (maxLat - minLat) * 1.6),
+                        longitudeDelta: Math.max(0.01, (maxLon - minLon) * 1.6),
+                      },
+                      350
+                    );
                   }}
                 >
                   <View style={styles.nativeCluster}>
@@ -224,7 +260,10 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
 
   // Fallback visual interactivo para Web / Expo Web (con mapa estilizado de Argentina / CABA)
   return (
-    <View style={[styles.webContainer, style]}>
+    <View
+      style={[styles.webContainer, style]}
+      onLayout={(event) => setWebLayout(event.nativeEvent.layout)}
+    >
       {/* Fondo de mapa temático */}
       <View style={styles.gridOverlay}>
         <View style={styles.riverDecoration} />
@@ -234,7 +273,24 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
         <View style={styles.avenueV2} />
       </View>
 
-      {showHeatmap && <View style={styles.webHeatmapOverlay} />}
+      {showHeatmap &&
+        incidents.map((incident) => {
+          const pos = proyectar(incident.location.latitude, incident.location.longitude);
+          return (
+            <View
+              key={`heat_${incident.id}`}
+              pointerEvents="none"
+              style={[
+                styles.webHeatSpot,
+                {
+                  left: pos.left,
+                  top: pos.top,
+                  opacity: 0.25 + incident.credibilityScore / 200,
+                },
+              ]}
+            />
+          );
+        })}
 
       {typeof radioKm === 'number' && radioKm > 0 && (
         <View style={styles.webRadiusWrapper} pointerEvents="none">
@@ -259,16 +315,37 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
         </Text>
       </View>
 
+      {/* Capa de seleccion: un tap fija el pin en la coordenada exacta. */}
+      {onSelectLocation && (
+        <TouchableOpacity
+          activeOpacity={1}
+          style={StyleSheet.absoluteFill}
+          onPress={(event) => {
+            if (!webLayout) return;
+            const { locationX, locationY } = event.nativeEvent;
+            const xPct = (locationX / webLayout.width) * 100;
+            const yPct = (locationY / webLayout.height) * 100;
+            const coords = desproyectar(xPct, yPct);
+            onSelectLocation({
+              ...coords,
+              address: selectedLocation?.address ?? 'Punto seleccionado',
+            });
+          }}
+        />
+      )}
+
       {/* Renderizado de pines sobre el lienzo */}
-      {incidents.map((incident, index) => {
+      {incidents.map((incident) => {
         const pinColor = getTrafficLightColor(incident.credibilityBreakdown.trafficLight);
-        const posX = 15 + ((index * 26 + 18) % 72);
-        const posY = 18 + ((index * 22 + 20) % 65);
+        const pos = proyectar(incident.location.latitude, incident.location.longitude);
 
         return (
           <TouchableOpacity
             key={incident.id}
             activeOpacity={0.8}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={`${incident.title}, credibilidad ${incident.credibilityScore}%`}
             onPress={() => {
               setActiveIncident(incident);
               if (onMarkerPress) onMarkerPress(incident);
@@ -276,8 +353,8 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
             style={[
               styles.webPin,
               {
-                left: `${posX}%`,
-                top: `${posY}%`,
+                left: pos.left,
+                top: pos.top,
                 borderColor: pinColor,
               },
             ]}
@@ -291,12 +368,12 @@ export const MapViewWrapper: React.FC<MapViewWrapperProps> = ({
       })}
 
       {/* Pin seleccionado por el usuario en P4 */}
-      {selectedLocation && (
-        <View style={[styles.selectedPinContainer, { left: '48%', top: '48%' }]}>
+      {selectedLocation && selectedPos && (
+        <View style={[styles.selectedPinContainer, selectedPos]}>
           <Ionicons name="location-sharp" size={32} color="#EF4444" />
           <View style={styles.pinPulse} />
           <Text style={styles.selectedPinText}>
-            {draggablePin ? 'Arrastrá el pin' : 'Punto fijado'}
+            {draggablePin ? 'Tocá el mapa para mover el pin' : 'Punto fijado'}
           </Text>
         </View>
       )}
@@ -355,6 +432,16 @@ const styles = StyleSheet.create({
   webHeatmapOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(239, 68, 68, 0.18)',
+  },
+  webHeatSpot: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    marginLeft: -32,
+    marginTop: -32,
+    borderRadius: 32,
+    backgroundColor: '#EF4444',
+    transform: [{ scale: 1.2 }],
   },
   webRadiusWrapper: {
     position: 'absolute',

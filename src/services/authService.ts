@@ -73,12 +73,16 @@ export interface SesionUsuario {
 }
 
 function mapearUsuario(u: FirebaseUser): SesionUsuario {
+  const proveedores = (u.providerData ?? []).map((p) => p.providerId);
+  const esGoogle = proveedores.includes('google.com');
+  const esAnonima = !esGoogle && proveedores.length === 0;
   return {
     uid: u.uid,
     email: u.email ?? '',
     displayName: u.displayName ?? '',
     photoURL: u.photoURL ?? undefined,
     phoneNumber: u.phoneNumber ?? undefined,
+    anonima: esAnonima,
   };
 }
 

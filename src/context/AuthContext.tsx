@@ -4,16 +4,20 @@
  * verificación de identidad para RG-07.
  */
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { UserIdentityFactors, UserProfile } from '../types';
 import { env, hasRealFirebaseConfig } from '../services/env';
 import {
+  auth,
   authService,
   SesionUsuario,
   EstadoDNI,
   ResultadoVerificacionDNI,
   logout as cerrarSesion,
 } from '../services/authService';
+import { db } from '../services/firebase';
 import { registrarTokenPush } from '../services/pushService';
 
 interface AuthContextType {
@@ -23,7 +27,7 @@ interface AuthContextType {
   isAdmin: boolean;
   identityFactors: UserIdentityFactors;
   dniEstado: EstadoDNI;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<UserProfile>;
   logout: () => Promise<void>;
   verifyPhone: (phoneNumber: string, code: string) => Promise<boolean>;
   verifyDNI: (dniNumber: string) => Promise<ResultadoVerificacionDNI>;
@@ -50,39 +54,112 @@ function aPerfil(sesion: SesionUsuario): UserProfile {
   };
 }
 
+async function persistirPerfil(perfil: UserProfile): Promise<void> {
+  if (!hasRealFirebaseConfig()) return;
+  try {
+    await setDoc(
+      doc(db, 'usuarios', perfil.uid),
+      {
+        email: perfil.email,
+        displayName: perfil.displayName,
+        phoneNumber: perfil.phoneNumber ?? null,
+        dniNumber: perfil.dniNumber ?? null,
+        identityFactors: perfil.identityFactors,
+        _serverTimestamp: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn('persistirPerfil: no se pudo guardar en Firestore:', e);
+  }
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [dniEstado, setDniEstado] = useState<EstadoDNI>('verificando');
+  // En modo demo el panel admin esta abierto; con Firebase manda el claim.
+  const [isAdmin, setIsAdmin] = useState(!hasRealFirebaseConfig());
 
   const identityFactors = user?.identityFactors || FACTORES_VACIOS;
 
-  // En modo demo el panel admin está abierto para poder probar; con Firebase
-  // real solo lo ven los emails configurados (roles formales: RF-015).
-  const isAdmin = !hasRealFirebaseConfig()
-    ? true
-    : Boolean(user?.email && env.adminEmails.includes(user.email.toLowerCase()));
+  const aplicarClaimAdmin = async (perfil: UserProfile) => {
+    const porEmail = Boolean(perfil.email && env.adminEmails.includes(perfil.email.toLowerCase()));
+    try {
+      const token = await auth.currentUser?.getIdTokenResult();
+      setIsAdmin(
+        token?.claims.admin === true || token?.claims.rol === 'U4' || porEmail
+      );
+    } catch {
+      setIsAdmin(porEmail);
+    }
+  };
+
+  useEffect(() => {
+    if (!hasRealFirebaseConfig()) return;
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (!fbUser) {
+        setUser(null);
+        setIsAdmin(false);
+        return;
+      }
+      const sesion: SesionUsuario = {
+        uid: fbUser.uid,
+        email: fbUser.email ?? '',
+        displayName: fbUser.displayName ?? '',
+        photoURL: fbUser.photoURL ?? undefined,
+        phoneNumber: fbUser.phoneNumber ?? undefined,
+        anonima: !fbUser.providerData.some((p) => p.providerId === 'google.com'),
+      };
+      const perfil = aPerfil(sesion);
+      try {
+        const snap = await getDoc(doc(db, 'usuarios', fbUser.uid));
+        if (snap.exists()) {
+          const data = snap.data() as Partial<UserProfile>;
+          perfil.identityFactors = {
+            ...perfil.identityFactors,
+            ...(data.identityFactors ?? {}),
+          };
+          perfil.phoneNumber = data.phoneNumber ?? perfil.phoneNumber;
+          perfil.dniNumber = data.dniNumber;
+        }
+      } catch (e) {
+        console.warn('AuthContext: no se pudo leer el perfil:', e);
+      }
+      setUser(perfil);
+      await aplicarClaimAdmin(perfil);
+      registrarTokenPush(fbUser.uid).catch(() => {});
+    });
+    return unsubscribe;
+  }, []);
 
   const loginWithGoogle = async () => {
     const sesion = await authService.signInWithGoogle();
-    setUser(aPerfil(sesion));
+    const perfil = aPerfil(sesion);
+    setUser(perfil);
+    await persistirPerfil(perfil);
+    await aplicarClaimAdmin(perfil);
     // RF-077: registrar el token de push del dispositivo para el usuario.
     registrarTokenPush(sesion.uid).catch(() => {});
+    return perfil;
   };
 
   const logout = async () => {
     await cerrarSesion();
     setUser(null);
+    setIsAdmin(false);
     setDniEstado('verificando');
   };
 
   const verifyPhone = async (phoneNumber: string, code: string): Promise<boolean> => {
     const ok = await authService.verifyPhone(phoneNumber, code);
     if (user && ok) {
-      setUser({
+      const next: UserProfile = {
         ...user,
         phoneNumber,
         identityFactors: { ...user.identityFactors, phoneVerified: true },
-      });
+      };
+      setUser(next);
+      await persistirPerfil(next);
     }
     return ok;
   };
@@ -91,11 +168,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const resultado = await authService.verifyDNI(dniNumber);
     setDniEstado(resultado.estado);
     if (user && resultado.estado === 'verificado') {
-      setUser({
+      const next: UserProfile = {
         ...user,
         dniNumber,
         identityFactors: { ...user.identityFactors, dniVerified: true },
-      });
+      };
+      setUser(next);
+      await persistirPerfil(next);
     }
     return resultado;
   };
@@ -112,7 +191,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user && user.identityFactors.googleAuth,
+        isAuthenticated: Boolean(user),
         isAdmin,
         identityFactors,
         dniEstado,

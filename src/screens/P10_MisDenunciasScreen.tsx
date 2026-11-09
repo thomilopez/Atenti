@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IncidentReport, RootStackParamList } from '../types';
 import { getIncidents } from '../services/firebase';
@@ -32,18 +33,19 @@ export const P10_MisDenunciasScreen: React.FC<Props> = ({ navigation }) => {
   const [denuncias, setDenuncias] = useState<IncidentReport[]>([]);
   const [filtro, setFiltro] = useState<FiltroEstado>('TODAS');
 
-  useEffect(() => {
-    const cargar = async () => {
-      // Mis Denuncias incluye EN_DISPUTA (no es la vista pública).
-      const todas = await getIncidents(undefined, undefined, { incluirEnDisputa: true });
-      setDenuncias(todas.filter((d) => !d.eliminada));
-    };
-    cargar();
+  const cargar = useCallback(async () => {
+    // Mis Denuncias incluye todos los estados (no es la vista publica).
+    const todas = await getIncidents(undefined, undefined, { incluirEnDisputa: true });
+    setDenuncias(todas.filter((d) => !d.eliminada));
   }, []);
 
-  const propias = denuncias.filter((d) => d.audit.uid === user?.uid);
-  // En modo demo el uid no coincide con la semilla: se muestra todo el listado.
-  const base = propias.length > 0 ? propias : denuncias;
+  useFocusEffect(
+    useCallback(() => {
+      cargar();
+    }, [cargar])
+  );
+
+  const base = denuncias.filter((d) => d.audit.uid === user?.uid);
 
   const visibles =
     filtro === 'TODAS'

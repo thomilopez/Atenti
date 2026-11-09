@@ -13,6 +13,19 @@ export interface Coordenadas {
   longitude: number;
 }
 
+/** Distancia Haversine en kilometros entre dos coordenadas. */
+export function distanciaKm(a: Coordenadas, b: Coordenadas): number {
+  const RADIO_TIERRA_KM = 6371;
+  const aRad = (a.latitude * Math.PI) / 180;
+  const bRad = (b.latitude * Math.PI) / 180;
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(aRad) * Math.cos(bRad) * Math.sin(dLon / 2) ** 2;
+  return 2 * RADIO_TIERRA_KM * Math.asin(Math.sqrt(h));
+}
+
 /** Pide permiso y devuelve la ubicación actual, o null si no se puede. */
 export async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
   try {

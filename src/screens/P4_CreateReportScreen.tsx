@@ -16,7 +16,7 @@ import { MapViewWrapper } from '../components/MapViewWrapper';
 import { MapPickerModal } from '../components/MapPickerModal';
 import { useReportFlow } from '../context/ReportFlowContext';
 import { BottomNavBar } from '../components/BottomNavBar';
-import { validarCbu, validarCuit, validarTelefonoE164, CATEGORIAS, CategoriaTipo } from '../services/normalize';
+import { validarAlias, validarCbu, validarCuit, validarTelefonoE164, CATEGORIAS, CategoriaTipo } from '../services/normalize';
 import { listarCategoriasActivas } from '../services/categoryService';
 import {
   obtenerUbicacionActual,
@@ -155,6 +155,20 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
 
     if (!identifierValue.trim()) {
       Alert.alert('Campo requerido', 'Ingresa el identificador denunciado.');
+      return;
+    }
+
+    // RF-088c: el Alias debe tener al menos una letra y un largo razonable.
+    if (identifierType === 'Alias' && !validarAlias(identifierValue)) {
+      Alert.alert(
+        'Alias inválido',
+        'El alias debe tener entre 3 y 30 caracteres e incluir al menos una letra.'
+      );
+      return;
+    }
+
+    if (identifierType === 'Local' && !identifierValue.trim()) {
+      Alert.alert('Dirección requerida', 'Ingresá la dirección o el nombre del local.');
       return;
     }
 
@@ -303,6 +317,7 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
               placeholderTextColor="#94A3B8"
               value={identifierValue}
               onChangeText={setIdentifierValue}
+              maxLength={identifierType === 'CBU' ? 22 : identifierType === 'CUIT' ? 11 : undefined}
               keyboardType={identifierType === 'CBU' || identifierType === 'CUIT' || identifierType === 'Tel' ? 'numeric' : 'default'}
               autoCapitalize="none"
               autoFocus={Boolean(validationError)}

@@ -35,6 +35,18 @@ export const P12_EditReportScreen: React.FC<Props> = ({ route, navigation }) => 
   const [motivo, setMotivo] = useState('');
 
   const handleSave = async () => {
+    if (!editable) {
+      Alert.alert('Ventana vencida', 'La denuncia ya no se puede editar.');
+      return;
+    }
+    if (story.trim().length < 20) {
+      Alert.alert('Relato muy corto', 'El relato debe tener al menos 20 caracteres.');
+      return;
+    }
+    if (!address.trim()) {
+      Alert.alert('Dirección requerida', 'La dirección no puede quedar vacía.');
+      return;
+    }
     setSaving(true);
     try {
       await actualizarDenuncia({
@@ -48,7 +60,7 @@ export const P12_EditReportScreen: React.FC<Props> = ({ route, navigation }) => 
       navigation.goBack();
     } catch (e) {
       setSaving(false);
-      Alert.alert('Error', 'No se pudieron guardar los cambios.');
+      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudieron guardar los cambios.');
     }
   };
 
@@ -63,7 +75,7 @@ export const P12_EditReportScreen: React.FC<Props> = ({ route, navigation }) => 
       Alert.alert('Eliminada', 'La denuncia fue eliminada de forma lógica.');
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', 'No se pudo eliminar la denuncia.');
+      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo eliminar la denuncia.');
     }
   };
 

@@ -13,6 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentCategory, IncidentReport, Relato, RootStackParamList } from '../types';
 import { buscarIncidentesPaginados } from '../services/firebase';
+import {
+  getNivel4Color,
+  getNivel4Label,
+  nivelCredibilidad4,
+} from '../services/credibility';
 import { CategoriaTipo, normalizeIdentifier } from '../services/normalize';
 import { listarCategoriasActivas } from '../services/categoryService';
 import { buscarRelatosPorIdentificador } from '../services/storyService';
@@ -23,7 +28,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'P13_SearchResults'>;
 
 const IDENTIFIER_TYPES: (IdentifierType | 'Todas')[] = ['Todas', 'Alias', 'CBU', 'CUIT', 'Tel', 'Local'];
 
-const SCORES = [0, 40, 60, 75];
+const SCORES = [0, 20, 40, 75];
 
 const POR_PAGINA = 5;
 
@@ -192,12 +197,26 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
               <Text style={styles.cardTitle} numberOfLines={1}>
                 {item.title}
               </Text>
-              <View style={styles.scorePill}>
-                <Text style={styles.scorePillText}>{item.credibilityScore}%</Text>
+              <View style={styles.cardBadges}>
+                <View
+                  accessible
+                  accessibilityRole="image"
+                  accessibilityLabel={`Credibilidad ${getNivel4Label(nivelCredibilidad4(item.credibilityScore))}`}
+                  style={[
+                    styles.semaphoreDot,
+                    { backgroundColor: getNivel4Color(nivelCredibilidad4(item.credibilityScore)) },
+                  ]}
+                />
+                <Text style={styles.semaphoreText}>
+                  {getNivel4Label(nivelCredibilidad4(item.credibilityScore))}
+                </Text>
+                <View style={styles.scorePill}>
+                  <Text style={styles.scorePillText}>{item.credibilityScore}%</Text>
+                </View>
               </View>
             </View>
             <Text style={styles.cardCategory}>{item.category}</Text>
-            <VeracityBar percentage={item.credibilityScore} height={10} />
+            <VeracityBar percentage={item.credibilityScore ?? 0} height={10} />
           </TouchableOpacity>
         )}
         ListFooterComponent={
@@ -355,6 +374,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: '#0F172A',
+  },
+  cardBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  semaphoreDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  semaphoreText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#475569',
   },
   scorePill: {
     backgroundColor: '#E0E7FF',

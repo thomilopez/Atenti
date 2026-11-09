@@ -10,8 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import { consultarAntecedentePublico } from '../services/firebase';
-import { isValidTrackingCode } from '../services/operationKey';
+import { consultarAntecedentePublico, PublicIncidentProjection } from '../services/firebase';
+import { isValidTrackingCode, normalizeTrackingCode } from '../services/operationKey';
 import { BottomNavBar } from '../components/BottomNavBar';
 import { VeracityBar } from '../components/VeracityBar';
 
@@ -19,17 +19,17 @@ type Props = NativeStackScreenProps<RootStackParamList, 'P11_TrackingCode'>;
 
 export const P11_TrackingCodeScreen: React.FC<Props> = ({ route, navigation }) => {
   const [codigo, setCodigo] = useState(route.params?.codigo ?? '');
-  const [resultado, setResultado] = useState<ReturnType<typeof consultarAntecedentePublico>>(null);
+  const [resultado, setResultado] = useState<PublicIncidentProjection | null>(null);
   const [buscado, setBuscado] = useState(false);
 
-  const handleConsultar = () => {
-    const limpio = codigo.trim().toUpperCase();
+  const handleConsultar = async () => {
+    const limpio = normalizeTrackingCode(codigo);
     setBuscado(true);
     if (!isValidTrackingCode(limpio)) {
       setResultado(null);
       return;
     }
-    setResultado(consultarAntecedentePublico(limpio));
+    setResultado(await consultarAntecedentePublico(limpio));
   };
 
   return (

@@ -76,3 +76,15 @@ export async function detectarSpam(params: {
   const res = await fn(params);
   return res.data as ResultadoSpam;
 }
+
+/** RF-014/RF-086: elimina la cuenta y sus datos en el servidor. */
+export async function eliminarCuentaRemota(motivo: string): Promise<void> {
+  const fn = httpsCallable(getFn(), 'eliminarCuenta');
+  await fn({ motivo });
+}
+
+/** RF-015: asigna un rol U0/U1/U4 (solo admin). */
+export async function setRolUsuarioRemoto(uid: string, rol: 'U0' | 'U1' | 'U4'): Promise<void> {
+  const fn = httpsCallable(getFn(), 'setRolUsuario');
+  await fn({ uid, rol });
+}

@@ -167,7 +167,12 @@ export type RootStackParamList = {
   P4_CreateReport: { prefilledIdentifier?: { type: IdentifierType; value: string }; draftId?: string; validationError?: ValidationErrorInfo } | undefined;
   P5_OCRValidation: undefined;
   P7_OfflineModal: { draftId?: string } | undefined;
-  P8_Confirmation: { trackingCode: string; finalScore: number; incidentId: string };
+  P8_Confirmation: {
+    trackingCode: string;
+    finalScore: number;
+    incidentId: string;
+    estado?: 'RECIBIDA' | 'PUBLICADA' | 'EN_DISPUTA' | 'RESUELTA';
+  };
   P9_CredibilityPanel: undefined;
   P10_MisDenuncias: undefined;
   P11_TrackingCode: { codigo?: string } | undefined;

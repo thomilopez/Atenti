@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useConnectivity } from '../context/ConnectivityContext';
+import { registrarEvento } from '../services/analytics';
 
 /** RF-053: banner superior que aparece al perder conexión. */
 export const OfflineBanner: React.FC = () => {
   const { isConnected } = useConnectivity();
+
+  useEffect(() => {
+    if (!isConnected) registrarEvento('modo_offline');
+  }, [isConnected]);
 
   if (isConnected) return null;
 

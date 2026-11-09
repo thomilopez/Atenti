@@ -7,6 +7,7 @@
  */
 import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
+import { eliminarCuentaRemota } from './cloudFunctions';
 
 export interface SolicitudBaja {
   uid: string;
@@ -43,4 +44,21 @@ export async function registrarSolicitudBaja(params: {
   }
 
   return solicitud;
+}
+
+/** RF-014/RF-086: borra la cuenta de verdad (Auth + Firestore) via Cloud Function. */
+export async function eliminarCuenta(params: {
+  uid: string;
+  motivo: string;
+}): Promise<void> {
+  if (!isFirebaseConfigured) {
+    solicitudesEnMemoria.push({
+      uid: params.uid,
+      motivo: params.motivo,
+      solicitadaEn: new Date().toISOString(),
+      estado: 'PENDIENTE',
+    });
+    return;
+  }
+  await eliminarCuentaRemota(params.motivo);
 }

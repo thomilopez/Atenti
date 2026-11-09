@@ -38,12 +38,20 @@ export const P22_DisputeStatusScreen: React.FC<Props> = ({ route, navigation }) 
   const [respuesta, setRespuesta] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [ahora, setAhora] = useState(Date.now());
+  const [errorCarga, setErrorCarga] = useState('');
 
   const cargar = useCallback(async () => {
-    await escalarImpugnacionesVencidas();
-    const imp = await obtenerImpugnacionPorDenuncia(denunciaId);
-    setImpugnacion(imp);
-    setLoading(false);
+    setLoading(true);
+    setErrorCarga('');
+    try {
+      await escalarImpugnacionesVencidas();
+      const imp = await obtenerImpugnacionPorDenuncia(denunciaId);
+      setImpugnacion(imp);
+    } catch (e) {
+      setErrorCarga(e instanceof Error ? e.message : 'No se pudo cargar la disputa.');
+    } finally {
+      setLoading(false);
+    }
   }, [denunciaId]);
 
   useEffect(() => {
@@ -88,7 +96,18 @@ export const P22_DisputeStatusScreen: React.FC<Props> = ({ route, navigation }) 
 
       <ScrollView contentContainerStyle={styles.content}>
         {loading ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color="#0F172A" />
+          <View style={styles.empty}>
+            <ActivityIndicator color="#0F172A" />
+            <Text style={styles.emptyText}>Cargando...</Text>
+          </View>
+        ) : errorCarga ? (
+          <View style={styles.empty}>
+            <Ionicons name="alert-circle-outline" size={40} color="#F59E0B" />
+            <Text style={styles.emptyText}>{errorCarga}</Text>
+            <TouchableOpacity onPress={cargar} style={styles.retryBtn}>
+              <Text style={styles.retryBtnText}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
         ) : !impugnacion ? (
           <View style={styles.empty}>
             <Ionicons name="shield-checkmark-outline" size={40} color="#CBD5E1" />
@@ -228,4 +247,12 @@ const styles = StyleSheet.create({
   escalatedText: { flex: 1, fontSize: 12, color: '#92400E', fontWeight: '600' },
   empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
+  retryBtn: {
+    marginTop: 8,
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  retryBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
 });

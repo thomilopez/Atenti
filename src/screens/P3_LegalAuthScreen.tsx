@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { registrarAceptacionTerminos, VERSION_TERMINOS_ACTUAL } from '../services/termsService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P3_LegalAuth'>;
 
@@ -36,7 +37,8 @@ export const P3_LegalAuthScreen: React.FC<Props> = ({ route, navigation }) => {
 
     try {
       setLoading(true);
-      await loginWithGoogle();
+      const perfil = await loginWithGoogle();
+      await registrarAceptacionTerminos(perfil.uid, VERSION_TERMINOS_ACTUAL);
       setLoading(false);
 
       if (returnTo === 'P4_CreateReport') {
@@ -102,7 +104,7 @@ export const P3_LegalAuthScreen: React.FC<Props> = ({ route, navigation }) => {
             style={[styles.continueBtn, !acceptedDDJJ && styles.btnDisabled]}
             activeOpacity={0.88}
             onPress={handleContinue}
-            disabled={loading}
+            disabled={loading || !acceptedDDJJ}
           >
             {loading ? (
               <ActivityIndicator color="#FFFFFF" />

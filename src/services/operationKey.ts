@@ -19,12 +19,8 @@ export function isValidOperationKey(key: unknown): key is string {
   return typeof key === 'string' && key.trim().length >= 8;
 }
 
-/** Formato público Etapa 3 §3: AT-2026-XXXXXX (6 dígitos, secuencial). */
-export function formatTrackingCode(seq: number): string {
-  const padded = String(Math.max(0, Math.floor(seq))).padStart(6, '0');
-  return `AT-2026-${padded}`;
-}
-
-export function isValidTrackingCode(code: unknown): boolean {
-  return typeof code === 'string' && /^AT-2026-\d{6}$/.test(code);
-}
+export {
+  formatTrackingCode,
+  isValidTrackingCode,
+  normalizeTrackingCode,
+} from './trackingCode';

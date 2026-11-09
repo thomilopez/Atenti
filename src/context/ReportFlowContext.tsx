@@ -12,6 +12,7 @@ import React, {
   useRef,
   ReactNode,
 } from 'react';
+import { AppState } from 'react-native';
 import {
   CredibilityBreakdown,
   EvidenceItem,
@@ -192,7 +193,8 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       uid: user?.uid ?? 'anonimo',
       userEmail: user?.email ?? '',
       ddjjAceptada: true,
-      googleVerificado: true,
+      googleVerificado: identityFactors.googleAuth,
+      identityFactors,
       claveOperacion: draft.claveOperacion,
     });
     await deleteDraft(draftId);
@@ -205,7 +207,20 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!isConnected) return;
-    procesarCola((draftId) => enviarRef.current(draftId)).catch(() => {});
+    const intentar = () => {
+      procesarCola((draftId) => enviarRef.current(draftId)).catch(() => {});
+    };
+    intentar();
+    // RF-056: reintentar tambien por tiempo y al volver a primer plano,
+    // no solo cuando cambia el estado de red.
+    const interval = setInterval(intentar, 30_000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') intentar();
+    });
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
   }, [isConnected]);
 
   const submitReport = async (): Promise<IncidentReport> => {
@@ -249,7 +264,8 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       uid,
       userEmail,
       ddjjAceptada: true,
-      googleVerificado: true,
+      googleVerificado: identityFactors.googleAuth,
+      identityFactors,
       claveOperacion: activeOperationKey,
       ddjjHash: ddjj.hash,
       ddjjAceptadaEn: ddjj.aceptadaEn,
@@ -290,6 +306,12 @@ export const ReportFlowProvider = ({ children }: { children: ReactNode }) => {
       excludeUid: uid,
       codigo: reporte.trackingCode,
     }).catch(() => {});
+
+    // El envio termino: el borrador y la clave ya no deben reutilizarse.
+    if (activeDraftId) {
+      await deleteDraft(activeDraftId).catch(() => {});
+    }
+    resetForm();
 
     return reporte;
   };

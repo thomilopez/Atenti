@@ -23,6 +23,7 @@ import {
   listarRecientes,
 } from '../services/recentSearches';
 import { calcularTendencias } from '../services/trends';
+import { registrarEvento } from '../services/analytics';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { useAuth } from '../context/AuthContext';
 import { DraftsListModal } from '../components/DraftsListModal';
@@ -103,6 +104,10 @@ export const P1_HomeScreen: React.FC<Props> = ({ navigation }) => {
       );
       return;
     }
+    registrarEvento('busqueda', {
+      type: type ?? 'Todas',
+      hasQuery: Boolean(searchQuery.trim()),
+    });
     if (searchQuery.trim() && type) {
       abrirBusqueda(searchQuery, type);
     } else {

@@ -29,5 +29,8 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Tests unitarios
+        run: npm test
+
       - name: Verificaciones
         run: npm run verify:all

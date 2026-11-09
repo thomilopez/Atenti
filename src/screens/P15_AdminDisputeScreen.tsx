@@ -25,8 +25,8 @@ export const P15_AdminDisputeScreen: React.FC<Props> = ({ route, navigation }) =
   const [procesando, setProcesando] = useState<'MANTENER' | 'RETIRAR' | null>(null);
 
   const resolver = async (decision: 'MANTENER' | 'RETIRAR') => {
-    if (decision === 'RETIRAR' && !nota.trim()) {
-      Alert.alert('Nota requerida', 'Para retirar la denuncia tenés que ingresar una nota.');
+    if (!nota.trim()) {
+      Alert.alert('Nota requerida', 'Para resolver la disputa tenés que ingresar una nota.');
       return;
     }
     setProcesando(decision);
@@ -45,7 +45,7 @@ export const P15_AdminDisputeScreen: React.FC<Props> = ({ route, navigation }) =
       );
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', 'No se pudo resolver la disputa.');
+      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo resolver la disputa.');
     } finally {
       setProcesando(null);
     }

@@ -17,8 +17,9 @@ import { BottomNavBar } from '../components/BottomNavBar';
 type Props = NativeStackScreenProps<RootStackParamList, 'P8_Confirmation'>;
 
 export const P8_ConfirmationScreen: React.FC<Props> = ({ route, navigation }) => {
-  const { trackingCode, finalScore } = route.params;
+  const { trackingCode, finalScore, estado } = route.params;
   const { resetForm } = useReportFlow();
+  const publicada = (estado ?? 'PUBLICADA') === 'PUBLICADA';
 
   const handleGoHome = () => {
     resetForm();
@@ -38,7 +39,9 @@ export const P8_ConfirmationScreen: React.FC<Props> = ({ route, navigation }) =>
 
       {/* Banner superior verde como en el mockup */}
       <View style={styles.topGreenBanner}>
-        <Text style={styles.bannerText}>Reporte publicado con éxito</Text>
+        <Text style={styles.bannerText}>
+          {publicada ? 'Reporte publicado con éxito' : 'Reporte recibido para revisión'}
+        </Text>
       </View>
 
       <View style={styles.container}>
@@ -52,9 +55,9 @@ export const P8_ConfirmationScreen: React.FC<Props> = ({ route, navigation }) =>
           <Text style={styles.codeText}>Código: {trackingCode}</Text>
 
           <View style={styles.scoreContainer}>
-            <Text style={styles.scoreLabel}>Credibilidad final: {finalScore || 80}%</Text>
+            <Text style={styles.scoreLabel}>Credibilidad final: {finalScore ?? 0}%</Text>
             <VeracityBar
-              percentage={finalScore || 80}
+              percentage={finalScore ?? 0}
               height={18}
               showPercentageText={true}
             />

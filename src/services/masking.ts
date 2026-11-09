@@ -85,7 +85,8 @@ export function toPublicProjection(report: IncidentReport): PublicIncidentProjec
       id: e.id,
       type: e.type,
       label: e.label,
-      uri: e.uri,
+      // La vista publica nunca recibe la URI original.
+      uri: '',
       ocrMatched: e.ocrMatched,
     })),
     corroboraciones: report.corroborationCount,

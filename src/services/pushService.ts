@@ -17,6 +17,14 @@ import { db, isFirebaseConfigured } from './firebase';
 type ModuloNotificaciones = typeof import('expo-notifications');
 
 let moduloCache: ModuloNotificaciones | null = null;
+let tapHandler: ((data: Record<string, unknown>) => void) | null = null;
+
+/** Permite a la navegacion reaccionar al tap de una notificacion push. */
+export function setNotificationTapHandler(
+  handler: ((data: Record<string, unknown>) => void) | null
+): void {
+  tapHandler = handler;
+}
 
 function esExpoGo(): boolean {
   return (
@@ -52,6 +60,11 @@ export async function configurarNotificaciones(): Promise<void> {
         shouldPlaySound: false,
         shouldSetBadge: false,
       }),
+    });
+
+    Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data ?? {};
+      tapHandler?.(data as Record<string, unknown>);
     });
 
     if (Platform.OS === 'android') {

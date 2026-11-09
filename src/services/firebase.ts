@@ -26,6 +26,7 @@ import {
   IncidentCategory,
   IncidentReport,
   LocationData,
+  UserIdentityFactors,
 } from '../types';
 import { calculateRG07Score } from './credibility';
 import { normalizeIdentifier, listarCategorias } from './normalize';
@@ -33,7 +34,11 @@ import {
   generateOperationKey,
   formatTrackingCode,
   isValidOperationKey,
+  normalizeTrackingCode,
 } from './operationKey';
+import { FirestoreWriteError, NotFoundError, ValidationError } from './errors';
+import { puedeEditar } from './editWindow';
+import { MAX_BYTES, MAX_EVIDENCIAS, MIMES_PERMITIDOS } from './evidenceService';
 import {
   DenunciaEstado,
   HistorialEvento,
@@ -272,10 +277,19 @@ function aplicarFiltros(
     }
     if (searchQuery && searchQuery.trim().length > 0) {
       const q = searchQuery.toLowerCase().trim();
-      const matchValue = inc.identifierValue.toLowerCase().includes(q);
-      const matchTitle = inc.title.toLowerCase().includes(q);
-      const matchStory = inc.story.toLowerCase().includes(q);
-      const matchAddress = inc.location.address.toLowerCase().includes(q);
+      const qNormalizado = normalizeIdentifier(
+        filterType ?? inc.identifierType,
+        searchQuery
+      );
+      const valor = inc.valorNormalizado ??
+        normalizeIdentifier(inc.identifierType, inc.identifierValue);
+      const matchValue =
+        inc.identifierValue.toLowerCase().includes(q) ||
+        valor === qNormalizado ||
+        valor.includes(qNormalizado);
+      const matchTitle = (inc.title ?? '').toLowerCase().includes(q);
+      const matchStory = (inc.story ?? '').toLowerCase().includes(q);
+      const matchAddress = (inc.location?.address ?? '').toLowerCase().includes(q);
       return matchValue || matchTitle || matchStory || matchAddress;
     }
     return true;
@@ -303,16 +317,23 @@ export async function getIncidents(
 
   if (isFirebaseConfigured) {
     try {
-      const q = query(
-        collection(db, 'denuncias'),
-        where('estadoActual', '==', 'PUBLICADA')
-      );
+      // La vista publica solo necesita PUBLICADA; "Mis Denuncias"/admin
+      // necesitan todos los estados y no deben perder las disputas.
+      const q = incluirEnDisputa
+        ? query(collection(db, 'denuncias'))
+        : query(collection(db, 'denuncias'), where('estadoActual', '==', 'PUBLICADA'));
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
-        const docs = snapshot.docs.map(
-          (d) => ({ id: d.id, ...(d.data() as Omit<IncidentReport, 'id'>) } as IncidentReport)
-        );
-        inMemoryIncidents = docs;
+        const docs = snapshot.docs
+          .map(
+            (d) => ({ id: d.id, ...(d.data() as Omit<IncidentReport, 'id'>) } as IncidentReport)
+          )
+          .filter((d) => !d.eliminada);
+
+        // No reemplazar el indice completo con una consulta parcial.
+        const porId = new Map(inMemoryIncidents.map((i) => [i.id, i]));
+        docs.forEach((d) => porId.set(d.id, d));
+        inMemoryIncidents = Array.from(porId.values());
         resultado = aplicarFiltros(docs, filterType, searchQuery, incluirEnDisputa);
       }
     } catch (error) {
@@ -356,8 +377,10 @@ export async function buscarIncidentesPaginados(
     incluirEnDisputa: params.incluirEnDisputa,
   });
 
-  const desde = params.desde ? new Date(params.desde).getTime() : null;
-  const hasta = params.hasta ? new Date(params.hasta).getTime() : null;
+  const desdeNum = params.desde ? new Date(`${params.desde}T00:00:00`).getTime() : null;
+  const hastaNum = params.hasta ? new Date(`${params.hasta}T23:59:59.999`).getTime() : null;
+  const desde = Number.isFinite(desdeNum) ? desdeNum : null;
+  const hasta = Number.isFinite(hastaNum) ? hastaNum : null;
 
   const filtrados = todos.filter((inc) => {
     if (params.categoria && inc.category !== params.categoria) return false;
@@ -384,104 +407,6 @@ export async function buscarIncidentesPaginados(
     porPagina,
     hayMas: inicio + porPagina < filtrados.length,
   };
-}
-
-/**
- * Persistencia atómica de una denuncia en Firestore con metadatos de auditoría
- */
-export async function saveIncidentReportAtomic(params: {
-  identifierType: IdentifierType;
-  identifierValue: string;
-  category: IncidentCategory;
-  story: string;
-  location: LocationData;
-  evidences: EvidenceItem[];
-  uid: string;
-  userEmail: string;
-  credibilityScore: number;
-}): Promise<IncidentReport> {
-  const randomCode = Math.floor(1000 + Math.random() * 9000);
-  const trackingCode = `AT-2026-${randomCode}`;
-  const incidentId = `inc_${Date.now()}`;
-
-  // Verificar si hay corroboración previa sobre el mismo identificador
-  // T03: agrupar por valor_normalizado, no por string crudo.
-  const valorNormalizado = normalizeIdentifier(
-    params.identifierType,
-    params.identifierValue,
-  );
-  const existingMatches = inMemoryIncidents.filter((i) => {
-    const norm = i.valorNormalizado ??
-      normalizeIdentifier(i.identifierType, i.identifierValue);
-    return norm === valorNormalizado;
-  });
-  const corroborationCount = existingMatches.length + 1;
-
-  // Recalcular desglose de credibilidad RG-07
-  const breakdown = calculateRG07Score({
-    identity: {
-      googleAuth: true,
-      phoneVerified: true,
-      dniVerified: false,
-    },
-    evidences: params.evidences,
-    corroborationCount,
-  });
-
-  const audit: AuditMetadata = {
-    uid: params.uid || 'usr_anonymous_demo',
-    userEmail: params.userEmail || 'usuario.atenti@gmail.com',
-    clientIp: '181.44.20.' + Math.floor(Math.random() * 254),
-    platform: Platform.OS as 'android' | 'ios' | 'web',
-    createdAt: new Date().toISOString(),
-  };
-
-  const report: IncidentReport = {
-    id: incidentId,
-    trackingCode,
-    claveOperacion: `legacy_${incidentId}`,
-    estadoActual: 'PUBLICADA',
-    valorNormalizado,
-    identifierType: params.identifierType,
-    identifierValue: params.identifierValue,
-    title: `${params.identifierType}: ${params.identifierValue}`,
-    category: params.category,
-    story: params.story,
-    location: params.location,
-    evidences: params.evidences.map((e) => ({ ...e, isMasked: true })),
-    credibilityScore: breakdown.totalScore || params.credibilityScore,
-    credibilityBreakdown: breakdown,
-    corroborationCount,
-    audit,
-    status: 'publicada',
-  };
-
-  // 1. Guardado en memoria inmediata para UI reactiva
-  inMemoryIncidents = [report, ...inMemoryIncidents];
-
-  // 2. Persistencia Atómica en Cloud Firestore con WriteBatch
-  try {
-    const batch = writeBatch(db);
-    const incidentDocRef = doc(db, 'incidents', incidentId);
-    batch.set(incidentDocRef, {
-      ...report,
-      _serverTimestamp: serverTimestamp(),
-    });
-
-    const auditDocRef = doc(db, 'audit_logs', `log_${incidentId}`);
-    batch.set(auditDocRef, {
-      incidentId,
-      trackingCode,
-      audit,
-      timestamp: serverTimestamp(),
-    });
-
-    await batch.commit();
-  } catch (firestoreError) {
-    console.warn('Firestore offline o no configurado aún; guardado en memoria local:', firestoreError);
-  }
-
-  return report;
 }
 
 // ============================================================================
@@ -557,6 +482,10 @@ export interface RegistrarDenunciaInput {
   userEmail: string;
   ddjjAceptada: boolean;
   googleVerificado: boolean;
+  /** Factores reales del usuario para RG-07. */
+  identityFactors?: UserIdentityFactors;
+  /** IP capturada por la Function; el cliente usa 0.0.0.0 como fallback. */
+  clientIp?: string;
   claveOperacion?: string;
   /** RF-082: hash de la DDJJ con IP y timestamp. */
   ddjjHash?: string;
@@ -578,22 +507,31 @@ export interface RegistrarDenunciaResult {
  */
 export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<RegistrarDenunciaResult> {
   if (!input.googleVerificado || !input.ddjjAceptada) {
-    throw new Error('RG-01: se requiere sesión Google válida y DDJJ aceptada');
+    throw new ValidationError('RG-01: se requiere sesión válida y DDJJ aceptada');
   }
   const claveOperacion = input.claveOperacion?.trim() || generateOperationKey();
-  if (!isValidOperationKey(claveOperacion)) throw new Error('RG-06: clave_operacion inválida');
-
-  const existente = await existeDenunciaPorClave(claveOperacion);
-  if (existente) {
-    return { codigo: existente.trackingCode, pct: existente.credibilityScore, reporte: existente, idempotente: true };
+  if (!isValidOperationKey(claveOperacion)) {
+    throw new ValidationError('RG-06: clave_operacion inválida');
   }
 
   // RG-02: relato mínimo de 20 caracteres y al menos una evidencia.
   if ((input.story ?? '').trim().length < 20) {
-    throw new Error('RG-02: el relato debe tener al menos 20 caracteres');
+    throw new ValidationError('RG-02: el relato debe tener al menos 20 caracteres');
   }
   if ((input.evidences ?? []).length < 1) {
-    throw new Error('RG-02: se requiere al menos una evidencia');
+    throw new ValidationError('RG-02: se requiere al menos una evidencia');
+  }
+  if (input.evidences.length > MAX_EVIDENCIAS) {
+    throw new ValidationError(`Se permiten hasta ${MAX_EVIDENCIAS} evidencias`);
+  }
+  for (const evidencia of input.evidences) {
+    if (typeof evidencia.size === 'number' && evidencia.size > MAX_BYTES) {
+      throw new ValidationError('Cada evidencia debe pesar menos de 10MB');
+    }
+    const mime = (evidencia.mimeType ?? '').toLowerCase();
+    if (mime && !MIMES_PERMITIDOS.includes(mime)) {
+      throw new ValidationError('Formato de evidencia no permitido');
+    }
   }
 
   const valorNormalizado = normalizeIdentifier(input.identifierType, input.identifierValue);
@@ -603,99 +541,164 @@ export async function registrarDenuncia(input: RegistrarDenunciaInput): Promise<
       (i.valorNormalizado ?? normalizeIdentifier(i.identifierType, i.identifierValue)) === valorNormalizado,
   ).length;
   const corroborationCount = previas + 1;
+  const identity: UserIdentityFactors = input.identityFactors ?? {
+    googleAuth: input.googleVerificado,
+    phoneVerified: false,
+    dniVerified: false,
+  };
 
   const breakdown = calculateRG07Score({
-    identity: { googleAuth: true, phoneVerified: true, dniVerified: false },
+    identity,
     evidences: input.evidences,
     corroborationCount,
   });
-  // I-06: pct == suma de componentes
   const pct = breakdown.identityScore + breakdown.evidenceScore + breakdown.corroborationScore;
-
-  const seq = await nextTrackingSequence();
-  const codigo = formatTrackingCode(seq);
-  const incidentId = `den_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
   const audit: AuditMetadata = {
     uid: input.uid,
     userEmail: input.userEmail,
-    clientIp: '0.0.0.0',
+    clientIp: input.clientIp ?? '0.0.0.0',
     platform: Platform.OS as 'android' | 'ios' | 'web',
     createdAt: new Date().toISOString(),
     ddjjHash: input.ddjjHash,
     ddjjAceptadaEn: input.ddjjAceptadaEn,
   };
 
-  const destino: DenunciaEstado = pct >= 20 ? 'PUBLICADA' : 'RECIBIDA';
-  const historial: HistorialEvento[] = [
-    buildHistorialEvento({ denunciaId: incidentId, origen: null, destino: 'RECIBIDA', actorId: input.uid }),
-  ];
-  if (destino === 'PUBLICADA') {
-    historial.push(
-      buildHistorialEvento({ denunciaId: incidentId, origen: 'RECIBIDA', destino: 'PUBLICADA', actorId: 'system' }),
-    );
-  }
-
-  const reporte: IncidentReport = {
-    id: incidentId,
-    trackingCode: codigo,
-    claveOperacion,
-    estadoActual: destino,
-    valorNormalizado,
-    identifierType: input.identifierType,
-    identifierValue: input.identifierValue,
-    title: `${input.identifierType}: ${input.identifierValue}`,
-    category: input.category,
-    story: storySanitizada,
-    location: input.location,
-    evidences: input.evidences.map((e) => ({ ...e, isMasked: true })),
-    credibilityScore: pct,
-    credibilityBreakdown: { ...breakdown, totalScore: pct },
-    corroborationCount,
-    audit,
-    eliminada: false,
-    status: destino === 'PUBLICADA' ? 'publicada' : 'en_revision',
-  };
-
-  if (!checkInvarianteI05(destino, historial)) throw new Error('I-05: historial inconsistente');
-
-  inMemoryIncidents = [reporte, ...inMemoryIncidents];
-  invalidarCache('incidents:');
-  byOperationKey.set(claveOperacion, reporte);
-  historialByDenuncia.set(incidentId, historial);
-
-  try {
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'denuncias', incidentId), { ...reporte, _serverTimestamp: serverTimestamp() });
-    batch.set(doc(db, 'denuncias_by_clave', claveOperacion), { denunciaId: incidentId, codigo });
-    batch.set(doc(db, 'objetivos', `${incidentId}_obj`), {
-      denunciaId: incidentId,
-      tipo: input.identifierType,
-      valorNormalizado,
-      valorExhibido: input.identifierValue,
-    });
-    if (input.location) {
-      batch.set(doc(db, 'ubicaciones', `${incidentId}_ubi`), { denunciaId: incidentId, ...input.location });
+  const construirReporte = (codigo: string, incidentId: string) => {
+    const destino: DenunciaEstado = pct >= 20 ? 'PUBLICADA' : 'RECIBIDA';
+    const historial: HistorialEvento[] = [
+      buildHistorialEvento({ denunciaId: incidentId, origen: null, destino: 'RECIBIDA', actorId: input.uid }),
+    ];
+    if (destino === 'PUBLICADA') {
+      historial.push(
+        buildHistorialEvento({ denunciaId: incidentId, origen: 'RECIBIDA', destino: 'PUBLICADA', actorId: 'system' }),
+      );
     }
-    input.evidences.forEach((e, idx) => {
-      batch.set(doc(db, 'evidencias', `${incidentId}_ev${idx}`), { denunciaId: incidentId, ...e });
-    });
-    historial.forEach((h) => {
-      batch.set(doc(db, 'historialEstado', h.id), { ...h, timestamp: serverTimestamp() });
-    });
-    batch.set(doc(db, 'audit_logs', `log_${incidentId}`), {
-      incidentId,
+    if (!checkInvarianteI05(destino, historial)) {
+      throw new ValidationError('I-05: historial inconsistente');
+    }
+    const reporte: IncidentReport = {
+      id: incidentId,
       trackingCode: codigo,
       claveOperacion,
+      estadoActual: destino,
+      valorNormalizado,
+      identifierType: input.identifierType,
+      identifierValue: input.identifierValue,
+      title: `${input.identifierType}: ${input.identifierValue}`,
+      category: input.category,
+      story: storySanitizada,
+      location: input.location,
+      evidences: input.evidences.map((e) => ({ ...e, isMasked: true })),
+      credibilityScore: pct,
+      credibilityBreakdown: { ...breakdown, totalScore: pct },
+      corroborationCount,
       audit,
-      timestamp: serverTimestamp(),
-    });
-    await batch.commit();
-  } catch (e) {
-    console.warn('registrarDenuncia: Firestore no disponible, persisto en memoria:', e);
+      eliminada: false,
+      status: destino === 'PUBLICADA' ? 'publicada' : 'en_revision',
+    };
+    return { reporte, historial };
+  };
+
+  // Modo demo: mantener el flujo en memoria sin tocar Firestore.
+  if (!isFirebaseConfigured) {
+    const seq = await nextTrackingSequence();
+    const codigo = formatTrackingCode(seq);
+    const incidentId = `den_${claveOperacion}`;
+    const { reporte, historial } = construirReporte(codigo, incidentId);
+    inMemoryIncidents = [reporte, ...inMemoryIncidents];
+    byOperationKey.set(claveOperacion, reporte);
+    historialByDenuncia.set(incidentId, historial);
+    invalidarCache('incidents:');
+    return { codigo, pct, reporte, idempotente: false };
   }
 
-  return { codigo, pct, reporte, idempotente: false };
+  try {
+    const resultado = await runTransaction(db, async (tx) => {
+      const claveRef = doc(db, 'denuncias_by_clave', claveOperacion);
+      const claveSnap = await tx.get(claveRef);
+      if (claveSnap.exists()) {
+        const data = claveSnap.data() as { denunciaId?: string };
+        if (data.denunciaId) {
+          const existenteSnap = await tx.get(doc(db, 'denuncias', data.denunciaId));
+          if (existenteSnap.exists()) {
+            const reporte = {
+              id: existenteSnap.id,
+              ...(existenteSnap.data() as Omit<IncidentReport, 'id'>),
+            } as IncidentReport;
+            return { reporte, historial: [] as HistorialEvento[], idempotente: true };
+          }
+        }
+      }
+
+      const counterRef = doc(db, 'atenti_counters', 'seguimiento');
+      const counterSnap = await tx.get(counterRef);
+      const actual = counterSnap.exists()
+        ? ((counterSnap.data() as { seq?: number }).seq ?? 1000)
+        : 1000;
+      const seq = actual + 1;
+      const codigo = formatTrackingCode(seq);
+      const incidentId = `den_${claveOperacion}`;
+      const { reporte, historial } = construirReporte(codigo, incidentId);
+
+      tx.set(counterRef, { seq }, { merge: true });
+      tx.set(doc(db, 'denuncias', incidentId), { ...reporte, _serverTimestamp: serverTimestamp() });
+      tx.set(claveRef, { denunciaId: incidentId, codigo, _serverTimestamp: serverTimestamp() });
+      tx.set(doc(db, 'objetivos', `${incidentId}_obj`), {
+        denunciaId: incidentId,
+        tipo: input.identifierType,
+        valorNormalizado,
+        valorExhibido: input.identifierValue,
+      });
+      if (input.location) {
+        tx.set(doc(db, 'ubicaciones', `${incidentId}_ubi`), {
+          denunciaId: incidentId,
+          ...input.location,
+        });
+      }
+      input.evidences.forEach((e, idx) => {
+        tx.set(doc(db, 'evidencias', `${incidentId}_ev${idx}`), {
+          denunciaId: incidentId,
+          ...e,
+        });
+      });
+      historial.forEach((h) => {
+        tx.set(doc(db, 'historialEstado', h.id), { ...h, timestamp: serverTimestamp() });
+      });
+      tx.set(doc(db, 'audit_logs', `log_${incidentId}`), {
+        incidentId,
+        trackingCode: codigo,
+        claveOperacion,
+        accion: 'CREACION_DENUNCIA',
+        audit,
+        timestamp: serverTimestamp(),
+      });
+
+      return { reporte, historial, idempotente: false };
+    });
+
+    inMemoryIncidents = [
+      resultado.reporte,
+      ...inMemoryIncidents.filter((i) => i.id !== resultado.reporte.id),
+    ];
+    byOperationKey.set(claveOperacion, resultado.reporte);
+    if (resultado.historial.length > 0) {
+      historialByDenuncia.set(resultado.reporte.id, resultado.historial);
+    }
+    invalidarCache('incidents:');
+    return {
+      codigo: resultado.reporte.trackingCode,
+      pct: resultado.reporte.credibilityScore,
+      reporte: resultado.reporte,
+      idempotente: resultado.idempotente,
+    };
+  } catch (e) {
+    if (e instanceof ValidationError) throw e;
+    throw new FirestoreWriteError(
+      'No se pudo guardar la denuncia. Revisá la conexión o los permisos.',
+      { cause: e }
+    );
+  }
 }
 
 /** T02: transición validada RG-10 + nota obligatoria RG-11 + I-05. */
@@ -705,8 +708,16 @@ export async function actualizarEstadoDenuncia(params: {
   actorId: string;
   nota?: string;
 }): Promise<IncidentReport> {
-  const reporte = inMemoryIncidents.find((i) => i.id === params.denunciaId);
-  if (!reporte) throw new Error('Denuncia no encontrada');
+  let reporte = inMemoryIncidents.find((i) => i.id === params.denunciaId) ?? null;
+
+  if (!reporte && isFirebaseConfigured) {
+    const snap = await getDoc(doc(db, 'denuncias', params.denunciaId));
+    if (snap.exists()) {
+      reporte = { id: snap.id, ...(snap.data() as Omit<IncidentReport, 'id'>) } as IncidentReport;
+    }
+  }
+  if (!reporte) throw new NotFoundError('Denuncia no encontrada');
+
   const from = (reporte.estadoActual ?? 'RECIBIDA') as DenunciaEstado;
   assertTransition(from, params.destino);
   const evento = buildHistorialEvento({
@@ -718,28 +729,75 @@ export async function actualizarEstadoDenuncia(params: {
   });
   const hist = [...(historialByDenuncia.get(reporte.id) ?? []), evento];
   reporte.estadoActual = params.destino;
-  reporte.status = params.destino === 'PUBLICADA' ? 'publicada' : params.destino === 'RESUELTA' ? 'desestimada' : 'en_revision';
+  reporte.status =
+    params.destino === 'PUBLICADA'
+      ? 'publicada'
+      : params.destino === 'RESUELTA'
+        ? 'desestimada'
+        : 'en_revision';
   historialByDenuncia.set(reporte.id, hist);
-  if (!checkInvarianteI05(params.destino, hist)) throw new Error('I-05 violado');
+  if (!checkInvarianteI05(params.destino, hist)) throw new ValidationError('I-05 violado');
   if (reporte.claveOperacion) byOperationKey.set(reporte.claveOperacion, reporte);
-  try {
-    const batch = writeBatch(db);
-    batch.set(doc(db, 'denuncias', reporte.id), { ...reporte }, { merge: true });
-    batch.set(doc(db, 'historialEstado', evento.id), { ...evento, timestamp: serverTimestamp() });
-    await batch.commit();
-  } catch (e) {
-    console.warn('actualizarEstadoDenuncia offline:', e);
+
+  if (isFirebaseConfigured) {
+    try {
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'denuncias', reporte.id), { ...reporte }, { merge: true });
+      batch.set(doc(db, 'historialEstado', evento.id), {
+        ...evento,
+        timestamp: serverTimestamp(),
+      });
+      batch.set(doc(db, 'audit_logs', `log_${reporte.id}_${evento.id}`), {
+        incidentId: reporte.id,
+        trackingCode: reporte.trackingCode,
+        accion: `CAMBIO_ESTADO_${params.destino}`,
+        actorId: params.actorId,
+        nota: params.nota,
+        audit: { ...reporte.audit, createdAt: new Date().toISOString() },
+        timestamp: serverTimestamp(),
+      });
+      await batch.commit();
+    } catch (e) {
+      throw new FirestoreWriteError('No se pudo actualizar el estado de la denuncia', { cause: e });
+    }
   }
+
+  invalidarCache('incidents:');
   return reporte;
 }
 
-export function getHistorial(denunciaId: string): HistorialEvento[] {
+export async function getHistorial(denunciaId: string): Promise<HistorialEvento[]> {
+  if (isFirebaseConfigured) {
+    try {
+      const snap = await getDocs(
+        query(collection(db, 'historialEstado'), where('denunciaId', '==', denunciaId))
+      );
+      if (!snap.empty) {
+        return snap.docs
+          .map((d) => ({ id: d.id, ...(d.data() as Omit<HistorialEvento, 'id'>) } as HistorialEvento))
+          .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+      }
+    } catch (e) {
+      console.warn('getHistorial: Firestore no disponible, uso memoria:', e);
+    }
+  }
   return [...(historialByDenuncia.get(denunciaId) ?? [])];
 }
 
-/** Busca una denuncia por id en el índice en memoria. */
-export function obtenerDenuncia(denunciaId: string): IncidentReport | null {
-  return inMemoryIncidents.find((i) => i.id === denunciaId) ?? null;
+/** Busca una denuncia por id en Firestore y cae a memoria en modo demo. */
+export async function obtenerDenuncia(denunciaId: string): Promise<IncidentReport | null> {
+  const enMemoria = inMemoryIncidents.find((i) => i.id === denunciaId) ?? null;
+  if (isFirebaseConfigured) {
+    try {
+      const snap = await getDoc(doc(db, 'denuncias', denunciaId));
+      if (snap.exists()) {
+        return { id: snap.id, ...(snap.data() as Omit<IncidentReport, 'id'>) } as IncidentReport;
+      }
+    } catch (e) {
+      console.warn('obtenerDenuncia: Firestore no disponible, uso memoria:', e);
+    }
+  }
+  return enMemoria;
 }
 
 /**
@@ -753,8 +811,20 @@ export async function actualizarDenuncia(params: {
   actorId: string;
   motivo: string;
 }): Promise<IncidentReport> {
-  const reporte = obtenerDenuncia(params.denunciaId);
-  if (!reporte) throw new Error('Denuncia no encontrada');
+  const reporte = await obtenerDenuncia(params.denunciaId);
+  if (!reporte) throw new NotFoundError('Denuncia no encontrada');
+  if (reporte.audit.uid !== params.actorId) {
+    throw new ValidationError('Solo el autor puede editar su denuncia');
+  }
+  if (!puedeEditar(reporte.audit.createdAt)) {
+    throw new ValidationError('La ventana de edición de 24hs expiró');
+  }
+  if (params.cambios.story !== undefined && params.cambios.story.trim().length < 20) {
+    throw new ValidationError('El relato debe tener al menos 20 caracteres');
+  }
+  if (params.cambios.location && !params.cambios.location.address.trim()) {
+    throw new ValidationError('La dirección no puede quedar vacía');
+  }
 
   Object.assign(reporte, params.cambios);
 
@@ -779,16 +849,37 @@ export async function actualizarDenuncia(params: {
       });
       await batch.commit();
     } catch (e) {
-      console.warn('actualizarDenuncia: Firestore no disponible, actualizo en memoria:', e);
+      throw new FirestoreWriteError('No se pudieron guardar los cambios', { cause: e });
     }
   }
 
+  invalidarCache('incidents:');
   return reporte;
 }
 
 /** T04: proyección pública (RG-08/I-07). Oculta EN_DISPUTA del buscador. */
-export function consultarAntecedentePublico(codigo: string): PublicIncidentProjection | null {
-  const rep = inMemoryIncidents.find((i) => i.trackingCode === codigo);
+export async function consultarAntecedentePublico(
+  codigo: string
+): Promise<PublicIncidentProjection | null> {
+  const normalizado = normalizeTrackingCode(codigo);
+  let rep = inMemoryIncidents.find((i) => i.trackingCode === normalizado) ?? null;
+
+  if (!rep && isFirebaseConfigured) {
+    try {
+      const snap = await getDocs(
+        query(collection(db, 'denuncias'), where('trackingCode', '==', normalizado))
+      );
+      if (!snap.empty) {
+        rep = {
+          id: snap.docs[0].id,
+          ...(snap.docs[0].data() as Omit<IncidentReport, 'id'>),
+        } as IncidentReport;
+      }
+    } catch (e) {
+      console.warn('consultarAntecedentePublico: Firestore no disponible:', e);
+    }
+  }
+
   if (!rep || rep.eliminada || rep.estadoActual === 'EN_DISPUTA') return null;
   return toPublicProjection(rep);
 }

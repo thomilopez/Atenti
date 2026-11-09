@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IncidentReport, RootStackParamList } from '../types';
 import { getIncidents } from '../services/firebase';
-import { obtenerUbicacionActual } from '../services/locationService';
+import { distanciaKm, obtenerUbicacionActual } from '../services/locationService';
 import { MapViewWrapper } from '../components/MapViewWrapper';
 import { BottomNavBar } from '../components/BottomNavBar';
 
@@ -24,6 +24,11 @@ export const P31_FullMapScreen: React.FC<Props> = ({ navigation }) => {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [radioKm, setRadioKm] = useState<number | undefined>(undefined);
   const [centro, setCentro] = useState({ latitude: -34.6037, longitude: -58.3816 });
+
+  const incidentsVisibles = useMemo(() => {
+    if (!radioKm) return incidents;
+    return incidents.filter((incident) => distanciaKm(centro, incident.location) <= radioKm);
+  }, [incidents, radioKm, centro]);
 
   useEffect(() => {
     getIncidents()
@@ -62,7 +67,7 @@ export const P31_FullMapScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         ) : (
           <MapViewWrapper
-            incidents={incidents}
+            incidents={incidentsVisibles}
             onMarkerPress={(incident) => navigation.navigate('P2_ReportDetail', { incident })}
             centerLatitude={centro.latitude}
             centerLongitude={centro.longitude}

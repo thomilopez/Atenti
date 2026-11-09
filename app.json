@@ -50,6 +50,20 @@
         }
       ],
       "@react-native-google-signin/google-signin",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Atenti usa tu ubicación para reportar y ver alertas cercanas."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Atenti accede a tus fotos para adjuntar evidencias.",
+          "cameraPermission": "Atenti usa la cámara para tomar evidencias del fraude."
+        }
+      ],
+      "expo-document-picker",
       "expo-sharing"
     ],
     "owner": "atenti"

@@ -5,6 +5,7 @@
  * (uid, IP, timestamp, versión de términos) para respaldo probatorio.
  */
 import * as Crypto from 'expo-crypto';
+import { VERSION_TERMINOS_ACTUAL as VERSION_TERMINOS_VIGENTE } from './termsService';
 
 export interface DDJJHash {
   hash: string;
@@ -13,7 +14,7 @@ export interface DDJJHash {
   versionTerminos: string;
 }
 
-export const VERSION_TERMINOS_ACTUAL = 'v1.0';
+export const VERSION_TERMINOS_ACTUAL = VERSION_TERMINOS_VIGENTE;
 
 export async function generarHashDDJJ(params: {
   uid: string;

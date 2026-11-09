@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { registrarSolicitudBaja } from '../services/accountService';
+import { eliminarCuenta } from '../services/accountService';
 import { listarNotificaciones, Notificacion } from '../services/notificationService';
 import { cargarConsentimiento, setConsentimiento } from '../services/analytics';
 import { BottomNavBar } from '../components/BottomNavBar';
@@ -31,9 +31,8 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
 
   useEffect(() => {
     const cargar = async () => {
-      const propias = await listarNotificaciones(user?.uid);
-      const todas = propias.length > 0 ? propias : await listarNotificaciones();
-      setNotificaciones(todas);
+      const propias = user?.uid ? await listarNotificaciones(user.uid) : [];
+      setNotificaciones(propias);
       setTelemetria(await cargarConsentimiento());
     };
     cargar();
@@ -64,13 +63,15 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
     if (!user) return;
-    await registrarSolicitudBaja({ uid: user.uid, motivo: motivo.trim() });
-    setShowDeleteModal(false);
-    setMotivo('');
-    Alert.alert(
-      'Solicitud registrada',
-      'Tu solicitud de baja fue registrada conforme a la Ley 25.326. Te contactaremos para confirmar.'
-    );
+    try {
+      await eliminarCuenta({ uid: user.uid, motivo: motivo.trim() });
+      setShowDeleteModal(false);
+      setMotivo('');
+      await logout();
+      navigation.reset({ index: 0, routes: [{ name: 'P1_Home' }] });
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo eliminar la cuenta.');
+    }
   };
 
   return (

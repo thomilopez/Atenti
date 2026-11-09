@@ -1,41 +1,25 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import { TrafficLightColor } from '../types';
+import {
+  getNivel4Color,
+  getNivel4Label,
+  nivelCredibilidad4,
+} from '../services/credibility';
 
 interface TrafficLightProps {
-  color: TrafficLightColor;
+  score: number;
   size?: number;
   showLabel?: boolean;
 }
 
 export const TrafficLightIndicator: React.FC<TrafficLightProps> = ({
-  color,
+  score,
   size = 18,
   showLabel = false,
 }) => {
-  const getColorHex = () => {
-    switch (color) {
-      case 'green':
-        return '#10B981';
-      case 'yellow':
-        return '#F59E0B';
-      case 'red':
-        return '#EF4444';
-    }
-  };
-
-  const getLabelText = () => {
-    switch (color) {
-      case 'green':
-        return 'Alta Veracidad';
-      case 'yellow':
-        return 'Sospechoso';
-      case 'red':
-        return 'Baja Veracidad';
-    }
-  };
-
-  const bgHex = getColorHex();
+  const nivel = nivelCredibilidad4(score);
+  const bgHex = getNivel4Color(nivel);
+  const label = getNivel4Label(nivel);
 
   return (
     <View style={styles.container}>
@@ -52,7 +36,7 @@ export const TrafficLightIndicator: React.FC<TrafficLightProps> = ({
         ]}
       />
       {showLabel && (
-        <Text style={[styles.label, { color: bgHex }]}>{getLabelText()}</Text>
+        <Text style={[styles.label, { color: bgHex }]}>{label}</Text>
       )}
     </View>
   );

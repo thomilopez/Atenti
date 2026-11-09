@@ -20,12 +20,17 @@ export function normalizeIdentifier(type: IdentifierType, rawValue: string): str
       return raw.replace(/\D/g, '');
     case 'Tel': {
       let digits = raw.replace(/\D/g, '');
-      // Normalizar prefijos locales AR: 0 + 15 -> móvil sin 0/15
+      // Normalizar prefijos locales AR: 0 + 15 -> movil sin 0/15
       if (digits.startsWith('0')) digits = digits.slice(1);
-      // Quitar el 15 intermedio típico: 11 15 XXXX-XXXX -> 11 XXXX-XXXX
+      // Quitar el 15 intermedio tipico: 11 15 XXXX-XXXX -> 11 XXXX-XXXX
       digits = digits.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2');
-      if (digits.startsWith('54')) return `+${digits}`;
-      if (digits.startsWith('549')) return `+${digits}`;
+      if (digits.startsWith('54')) {
+        const resto = digits.slice(2);
+        if (resto.startsWith('9')) return `+54${resto}`;
+        if (/^\d{10}$/.test(resto)) return `+549${resto}`;
+        return `+54${resto}`;
+      }
+      if (/^\d{10}$/.test(digits)) return `+549${digits}`;
       return `+54${digits}`;
     }
     case 'Local':
@@ -68,10 +73,18 @@ function validarBloqueCbu(bloque: string, pesos: number[]): boolean {
   return verificador === Number(bloque[pesos.length]);
 }
 
-/** RF-089: valida que un teléfono argentino quede en formato E.164. */
+/** Valida un Alias: letras, numeros y separadores, con al menos una letra. */
+export function validarAlias(valor: string): boolean {
+  const v = (valor ?? '').trim();
+  if (v.length < 3 || v.length > 30) return false;
+  if (!/[a-zA-Z]/.test(v)) return false;
+  return /^[a-zA-Z0-9._-]+$/.test(v);
+}
+
+/** RF-089: valida que un telefono argentino quede en formato E.164 movil. */
 export function validarTelefonoE164(valor: string): boolean {
   const normalizado = normalizeIdentifier('Tel', valor);
-  return /^\+54\d{10,11}$/.test(normalizado);
+  return /^\+549\d{10}$/.test(normalizado);
 }
 
 export const PREFIJOS_CUIT = ['20', '23', '24', '27', '30', '33', '34'];
@@ -104,6 +117,7 @@ export function validarIdentificador(type: IdentifierType, valor: string): boole
   if (type === 'CBU') return validarCbu(valor);
   if (type === 'CUIT') return validarCuit(valor);
   if (type === 'Tel') return validarTelefonoE164(valor);
+  if (type === 'Alias') return validarAlias(valor);
   return true;
 }
 

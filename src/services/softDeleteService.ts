@@ -7,6 +7,9 @@
 import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 import { IncidentReport } from '../types';
+import { FirestoreWriteError, ValidationError } from './errors';
+import { puedeEditar } from './editWindow';
+import { invalidarCache } from './cacheService';
 
 export interface EliminacionDenuncia {
   denunciaId: string;
@@ -24,7 +27,13 @@ export async function eliminarDenuncia(params: {
 }): Promise<EliminacionDenuncia> {
   const motivo = params.motivo?.trim();
   if (!motivo) {
-    throw new Error('RF-024: la eliminación exige un motivo justificativo');
+    throw new ValidationError('RF-024: la eliminación exige un motivo justificativo');
+  }
+  if (params.reporte.audit.uid !== params.uid) {
+    throw new ValidationError('Solo el autor puede eliminar su denuncia');
+  }
+  if (!puedeEditar(params.reporte.audit.createdAt)) {
+    throw new ValidationError('La ventana de edición de 24hs expiró');
   }
 
   const eliminacion: EliminacionDenuncia = {
@@ -52,10 +61,11 @@ export async function eliminarDenuncia(params: {
       });
       await batch.commit();
     } catch (e) {
-      console.warn('eliminarDenuncia: Firestore no disponible, se marca en memoria:', e);
+      throw new FirestoreWriteError('No se pudo eliminar la denuncia', { cause: e });
     }
   }
 
+  invalidarCache('incidents:');
   return eliminacion;
 }
 

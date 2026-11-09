@@ -36,11 +36,13 @@ export const MapPickerModal: React.FC<MapPickerModalProps> = ({
   const [selected, setSelected] = useState<LocationData | undefined>(initial);
   const [query, setQuery] = useState('');
   const [buscando, setBuscando] = useState(false);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setSelected(initial);
       setQuery(initial?.address ?? '');
+      setTouched(false);
     }
   }, [visible, initial]);
 
@@ -57,12 +59,14 @@ export const MapPickerModal: React.FC<MapPickerModalProps> = ({
       return;
     }
     setSelected(loc);
+    setTouched(true);
   };
 
   const handleMapSelect = async (loc: LocationData) => {
     const conDireccion = await ubicacionConDireccion(loc);
     setSelected(conDireccion);
     setQuery(conDireccion.address);
+    setTouched(true);
   };
 
   return (
@@ -111,9 +115,9 @@ export const MapPickerModal: React.FC<MapPickerModalProps> = ({
             {selected ? componerDireccion(selected) : 'Elegí un punto en el mapa o buscá una dirección'}
           </Text>
           <TouchableOpacity
-            style={[styles.confirmBtn, !selected && styles.disabled]}
-            disabled={!selected}
-            onPress={() => selected && onConfirm(selected)}
+            style={[styles.confirmBtn, (!selected || !touched) && styles.disabled]}
+            disabled={!selected || !touched}
+            onPress={() => selected && touched && onConfirm(selected)}
           >
             <Text style={styles.confirmText}>Confirmar ubicación</Text>
           </TouchableOpacity>

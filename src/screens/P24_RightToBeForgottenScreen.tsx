@@ -14,12 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { registrarSolicitudBaja } from '../services/accountService';
+import { eliminarCuenta } from '../services/accountService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P24_RightToBeForgotten'>;
 
 export const P24_RightToBeForgottenScreen: React.FC<Props> = ({ navigation }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [motivo, setMotivo] = useState('');
   const [enviando, setEnviando] = useState(false);
 
@@ -28,18 +28,23 @@ export const P24_RightToBeForgottenScreen: React.FC<Props> = ({ navigation }) =>
       Alert.alert('Motivo requerido', 'Contanos el motivo con al menos 10 caracteres.');
       return;
     }
+    if (!user) {
+      Alert.alert('Sesión requerida', 'Iniciá sesión para eliminar tu cuenta.');
+      return;
+    }
     setEnviando(true);
     try {
-      await registrarSolicitudBaja({ uid: user?.uid ?? 'anonimo', motivo: motivo.trim() });
+      await eliminarCuenta({ uid: user.uid, motivo: motivo.trim() });
       setEnviando(false);
+      await logout();
       Alert.alert(
-        'Solicitud registrada',
-        'Tu solicitud de derecho al olvido fue registrada conforme a la Ley 25.326.',
-        [{ text: 'Aceptar', onPress: () => navigation.goBack() }]
+        'Cuenta eliminada',
+        'Tus datos personales fueron eliminados o anonimizados conforme a la Ley 25.326.',
+        [{ text: 'Aceptar', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'P1_Home' }] }) }]
       );
     } catch (e) {
       setEnviando(false);
-      Alert.alert('Error', 'No se pudo registrar la solicitud.');
+      Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo eliminar la cuenta.');
     }
   };
 

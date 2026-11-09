@@ -15,6 +15,8 @@ export interface OcrResult {
   detectedIdentifier?: string;
   matched: boolean;
   confidence: number;
+  /** true cuando el resultado es una simulacion y no debe otorgar puntos. */
+  simulated?: boolean;
 }
 
 function simularOCR(
@@ -34,9 +36,9 @@ function simularOCR(
     }
     return {
       extractedText: extracted,
-      detectedIdentifier: expectedValue,
-      matched: true,
-      confidence: 0.94,
+      matched: false,
+      confidence: 0,
+      simulated: true,
     };
   }
 
@@ -44,16 +46,17 @@ function simularOCR(
     const extracted = `WhatsApp Chat\n[13:40] Vendedor: "Haceme la transferencia al ${expectedType} ${expectedValue} y te mando la guía"\n[13:42] Víctima: "Listo, ya te transferí"\n[14:00] (Usuario bloqueado)`;
     return {
       extractedText: extracted,
-      detectedIdentifier: expectedValue,
-      matched: true,
-      confidence: 0.88,
+      matched: false,
+      confidence: 0,
+      simulated: true,
     };
   }
 
   return {
     extractedText: `Documento procesado: ${imageUri.substring(imageUri.lastIndexOf('/') + 1)}`,
     matched: false,
-    confidence: 0.5,
+    confidence: 0,
+    simulated: true,
   };
 }
 
@@ -66,11 +69,12 @@ export async function processEvidenceOCR(
 ): Promise<OcrResult> {
   if (isFirebaseConfigured && imageBase64) {
     try {
-      return await procesarOCRRemoto({
+      const resultado = await procesarOCRRemoto({
         imageBase64,
         expectedType,
         expectedValue,
       });
+      return { ...resultado, simulated: false };
     } catch (error) {
       console.warn('OCR remoto no disponible, uso simulación:', error);
     }

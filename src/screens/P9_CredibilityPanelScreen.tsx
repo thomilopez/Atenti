@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { VeracityBar } from '../components/VeracityBar';
 import { ScoreBreakdown } from '../components/ScoreBreakdown';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { validarTelefonoE164 } from '../services/normalize';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P9_CredibilityPanel'>;
 
@@ -32,6 +33,7 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
 
   // Modales interactivos
   const [phoneModalVisible, setPhoneModalVisible] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
   const [digit1, setDigit1] = useState('1');
   const [digit2, setDigit2] = useState('1');
   const [digit3, setDigit3] = useState('0');
@@ -39,12 +41,10 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
   const [phoneLoading, setPhoneLoading] = useState(false);
 
   const [dniModalVisible, setDniModalVisible] = useState(false);
-  const [dniInput, setDniInput] = useState('38.412.905');
+  const [dniInput, setDniInput] = useState('');
   const [dniLoading, setDniLoading] = useState(false);
 
   const identityScore = calculateMyIdentityScore();
-  // Score total simulado acumulado con evidencias
-  const totalCredibility = Math.min(100, identityScore + 45 + 15);
 
   const identityBreakdown: CredibilityBreakdown = {
     identityScore,
@@ -56,20 +56,37 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleConfirmPhone = async () => {
+    if (!validarTelefonoE164(phoneInput)) {
+      Alert.alert('Teléfono inválido', 'Ingresá un celular argentino válido (ej: +54 9 11 3849 2018).');
+      return;
+    }
+    const codigo = `${digit1}${digit2}${digit3}${digit4}`;
+    if (codigo.length !== 4) {
+      Alert.alert('Código incompleto', 'Ingresá los 4 dígitos del SMS.');
+      return;
+    }
     setPhoneLoading(true);
-    await verifyPhone('+54 9 11 4455-8899', `${digit1}${digit2}${digit3}${digit4}`);
+    const ok = await verifyPhone(phoneInput, codigo);
     setPhoneLoading(false);
     setPhoneModalVisible(false);
-    Alert.alert('¡Verificado!', 'Se han sumado +15% a tu nivel de credibilidad.');
+    Alert.alert(
+      ok ? 'Verificado' : 'No verificado',
+      ok ? 'Se han sumado 15 puntos a tu identidad.' : 'El código no es válido.'
+    );
   };
 
   const handleConfirmDNI = async () => {
+    const limpio = dniInput.replace(/\D/g, '');
+    if (!/^\d{7,8}$/.test(limpio)) {
+      Alert.alert('DNI inválido', 'Ingresá un DNI de 7 u 8 dígitos.');
+      return;
+    }
     setDniLoading(true);
-    const resultado = await verifyDNI(dniInput);
+    const resultado = await verifyDNI(limpio);
     setDniLoading(false);
     setDniModalVisible(false);
     if (resultado.estado === 'verificado') {
-      Alert.alert('¡Verificado!', 'Se han sumado +10% a tu nivel de credibilidad.');
+      Alert.alert('Verificado', 'Se han sumado 10 puntos a tu identidad.');
     } else if (resultado.estado === 'verificando') {
       Alert.alert('Verificando', resultado.mensaje);
     } else {
@@ -102,9 +119,13 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
               <Ionicons name="logo-google" size={18} color="#0F172A" style={styles.itemIcon} />
               <Text style={styles.itemTitle}>Cuenta Google</Text>
             </View>
-            <View style={styles.checkBadge}>
-              <Ionicons name="checkmark" size={16} color="#000000" />
-            </View>
+            {identityFactors.googleAuth ? (
+              <View style={styles.checkBadge}>
+                <Ionicons name="checkmark" size={16} color="#000000" />
+              </View>
+            ) : (
+              <Text style={styles.pendingBadgeText}>Pendiente</Text>
+            )}
           </View>
 
           {/* Ítem 2: "Teléfono verificado (+15%)" (con botón 'Verificar') */}
@@ -112,7 +133,7 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
             <View style={styles.itemLeft}>
               <Ionicons name="phone-portrait-outline" size={18} color="#0F172A" style={styles.itemIcon} />
               <View>
-                <Text style={styles.itemTitle}>Teléfono verificado (+15%)</Text>
+                <Text style={styles.itemTitle}>Teléfono verificado (+15 pts)</Text>
               </View>
             </View>
 
@@ -135,7 +156,7 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
             <View style={styles.itemLeft}>
               <Ionicons name="card-outline" size={18} color="#0F172A" style={styles.itemIcon} />
               <View>
-                <Text style={styles.itemTitle}>DNI verificado (+10%)</Text>
+                <Text style={styles.itemTitle}>DNI verificado (+10 pts)</Text>
               </View>
             </View>
 
@@ -196,9 +217,9 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
 
           {/* Barra de porcentaje final abajo */}
           <View style={styles.finalScoreBox}>
-            <Text style={styles.finalScoreLabel}>Credibilidad Total:</Text>
+            <Text style={styles.finalScoreLabel}>Identidad verificada:</Text>
             <VeracityBar
-              percentage={totalCredibility}
+              percentage={identityScore}
               height={18}
               showPercentageText={true}
             />
@@ -216,6 +237,17 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
             </Text>
 
             {/* 4 casilleros de dígitos: [ 1 ] [ 1 ] [ 0 ] [ 0 ] */}
+            <View style={styles.dniInputBox}>
+              <TextInput
+                style={styles.dniInput}
+                value={phoneInput}
+                onChangeText={setPhoneInput}
+                keyboardType="phone-pad"
+                placeholder="+54 9 11 3849 2018"
+                placeholderTextColor="#94A3B8"
+              />
+            </View>
+
             <View style={styles.otpDigitsRow}>
               <TextInput
                 style={styles.digitBox}
@@ -277,7 +309,7 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.otpCard}>
             <Text style={styles.brandTitle}>Atenti</Text>
             <Text style={styles.otpSubtitle}>
-              Verificación de DNI con Renaper (+10%)
+              Verificación de DNI con Renaper (+10 pts)
             </Text>
 
             <View style={styles.dniInputBox}>
@@ -287,6 +319,8 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
                 onChangeText={setDniInput}
                 keyboardType="numeric"
                 placeholder="Número de DNI"
+                editable={!identityFactors.dniVerified}
+                maxLength={10}
               />
             </View>
 

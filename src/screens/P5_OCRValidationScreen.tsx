@@ -17,6 +17,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EvidenceItem, RootStackParamList } from '../types';
 import { useReportFlow } from '../context/ReportFlowContext';
+import { esErrorDeRed } from '../services/errors';
+import { registrarEvento } from '../services/analytics';
 import { processEvidenceOCR } from '../services/ocrService';
 import { MAX_EVIDENCIAS, validarArchivo, formatearBytes } from '../services/evidenceService';
 import { subirEvidencia } from '../services/storageService';
@@ -46,6 +48,44 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
 
   const evidenciasLleno = evidences.length >= MAX_EVIDENCIAS;
 
+  const elegirImagen = async (): Promise<ImagePicker.ImagePickerAsset | null> => {
+    const origen = await new Promise<'galeria' | 'camara' | null>((resolve) => {
+      Alert.alert(
+        'Adjuntar evidencia',
+        '¿De dónde querés tomar la imagen?',
+        [
+          { text: 'Galería', onPress: () => resolve('galeria') },
+          { text: 'Cámara', onPress: () => resolve('camara') },
+          { text: 'Cancelar', style: 'cancel', onPress: () => resolve(null) },
+        ],
+        { cancelable: true, onDismiss: () => resolve(null) }
+      );
+    });
+    if (!origen) return null;
+
+    if (origen === 'camara') {
+      const permiso = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permiso.granted) return null;
+      const resultado = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        base64: true,
+        quality: 0.7,
+        exif: true,
+      });
+      return resultado.canceled ? null : resultado.assets[0] ?? null;
+    }
+
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) return null;
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      base64: true,
+      quality: 0.7,
+      exif: true,
+    });
+    return resultado.canceled ? null : resultado.assets[0] ?? null;
+  };
+
   const handleUpload = async (type: 'chat_screenshot' | 'bank_receipt') => {
     if (evidenciasLleno) {
       Alert.alert('Límite alcanzado', `Podés adjuntar hasta ${MAX_EVIDENCIAS} evidencias.`);
@@ -55,43 +95,21 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
     try {
       setOcrLoading(true);
 
-      let uri: string | undefined;
-      let base64: string | undefined;
-      let fileName: string | null | undefined;
-      let mimeType: string | null | undefined;
-      let size: number | undefined;
-      let exif: Record<string, unknown> | undefined;
-
-      const demoUri =
-        type === 'chat_screenshot'
-          ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400'
-          : 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400';
-
-      // RF-028/RF-034: selección real desde la galería con base64 y EXIF.
-      try {
-        const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permiso.granted) {
-          const resultado = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            base64: true,
-            quality: 0.7,
-            exif: true,
-          });
-          if (!resultado.canceled && resultado.assets[0]) {
-            const asset = resultado.assets[0];
-            uri = asset.uri;
-            base64 = asset.base64 ?? undefined;
-            fileName = asset.fileName;
-            mimeType = asset.mimeType;
-            size = asset.fileSize;
-            exif = asset.exif ? { ...asset.exif } : undefined;
-          }
-        }
-      } catch (pickerError) {
-        // En web o sin permisos se usa la imagen demo.
+      // RF-028/RF-034: seleccion real de camara o galeria con base64 y EXIF.
+      const asset = await elegirImagen();
+      if (!asset) {
+        setOcrLoading(false);
+        return;
       }
 
-      const archivo = { uri: uri ?? demoUri, name: fileName, mimeType, size };
+      const uri = asset.uri;
+      const base64 = asset.base64 ?? undefined;
+      const fileName = asset.fileName;
+      const mimeType = asset.mimeType;
+      const size = asset.fileSize;
+      const exif = asset.exif ? { ...asset.exif } : undefined;
+
+      const archivo = { uri, name: fileName, mimeType, size };
       const validacion = validarArchivo(archivo, evidences.length);
       if (!validacion.ok) {
         setOcrLoading(false);
@@ -99,9 +117,8 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
-      const finalUri = uri ?? demoUri;
       const url = await subirEvidencia({
-        uri: finalUri,
+        uri,
         nombre: fileName ?? `evidencia_${Date.now()}`,
         mimeType: mimeType ?? 'image/jpeg',
       });
@@ -110,7 +127,7 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
         type,
         identifierType,
         identifierValue,
-        finalUri,
+        uri,
         base64
       );
 
@@ -131,6 +148,10 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
 
       addEvidence(newEvidence);
       setOcrLoading(false);
+      registrarEvento('ocr_evidencia', {
+        matched: ocrResult.matched,
+        simulated: Boolean(ocrResult.simulated),
+      });
       if (ocrResult.matched) {
         Alert.alert('OCR validado', 'La evidencia coincide con el objetivo. El score se actualizó.');
       }
@@ -198,10 +219,12 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const result = await submitReport();
       setSubmitting(false);
+      registrarEvento('denuncia_enviada', { score: result.credibilityScore });
       navigation.replace('P8_Confirmation', {
         trackingCode: result.trackingCode,
         finalScore: result.credibilityScore,
         incidentId: result.id,
+        estado: result.estadoActual,
       });
     } catch (error: any) {
       setSubmitting(false);
@@ -216,8 +239,13 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
           'Posible duplicado',
           'Detectamos una denuncia muy similar reciente. Revisá tu reporte antes de enviarlo.'
         );
-      } else {
+      } else if (mensaje === 'NETWORK_OFFLINE_ERROR' || esErrorDeRed(error)) {
         setShowOfflineModal(true);
+      } else {
+        Alert.alert(
+          'No se pudo enviar',
+          error?.message ?? 'Ocurrió un error al guardar la denuncia. Intentá de nuevo.'
+        );
       }
     }
   };

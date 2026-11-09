@@ -16,6 +16,8 @@ export interface EntradaCola {
   draftId: string;
   intentos: number;
   proximoIntento: number;
+  /** `fallido` conserva la entrada agotada para reintento manual. */
+  estado?: 'pendiente' | 'fallido';
 }
 
 /** Backoff exponencial: 1s, 2s, 4s, 8s... con tope de 5 minutos. */
@@ -65,6 +67,7 @@ export async function procesarCola(
 
   for (const entrada of cola) {
     if (entrada.intentos >= MAX_INTENTOS) {
+      restantes.push({ ...entrada, estado: 'fallido' });
       fallidos++;
       continue;
     }
@@ -81,6 +84,7 @@ export async function procesarCola(
         draftId: entrada.draftId,
         intentos,
         proximoIntento: ahora + calcularBackoff(intentos),
+        estado: intentos >= MAX_INTENTOS ? 'fallido' : 'pendiente',
       });
       fallidos++;
     }
@@ -88,4 +92,22 @@ export async function procesarCola(
 
   await escribirCola(restantes);
   return { exitosos, fallidos, pendientes: restantes.length };
+}
+
+/** Reinicia las entradas agotadas para un reintento manual. */
+export async function reintentarFallidos(): Promise<number> {
+  const cola = await leerCola();
+  let reiniciados = 0;
+  const actualizada = cola.map((entrada) => {
+    if (entrada.estado !== 'fallido') return entrada;
+    reiniciados++;
+    return { ...entrada, intentos: 0, proximoIntento: Date.now(), estado: 'pendiente' as const };
+  });
+  await escribirCola(actualizada);
+  return reiniciados;
+}
+
+export async function contarFallidos(): Promise<number> {
+  const cola = await leerCola();
+  return cola.filter((e) => e.estado === 'fallido' || e.intentos >= MAX_INTENTOS).length;
 }
