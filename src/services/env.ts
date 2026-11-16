@@ -19,6 +19,12 @@ export interface AtentiEnv {
     appId: string;
   };
   googleMapsApiKey: string;
+  /**
+   * Key para la Maps JavaScript API en navegador. La de arriba está restringida
+   * a la app Android (paquete + SHA-1), así que Google rechaza los tiles desde
+   * web. Si falta, se cae a `googleMapsApiKey`.
+   */
+  googleMapsWebApiKey: string;
   googleWebClientId: string;
   /** RF-090: máximo de denuncias por usuario por día. */
   rateLimitDaily: number;
@@ -45,46 +51,50 @@ function read(name: string): string {
 /** Indica si hay credenciales reales de Firebase configuradas. */
 export function hasRealFirebaseConfig(): boolean {
   return Boolean(
-    read('EXPO_PUBLIC_FIREBASE_API_KEY') &&
-      read('EXPO_PUBLIC_FIREBASE_PROJECT_ID') &&
-      read('EXPO_PUBLIC_FIREBASE_APP_ID')
+    process.env.EXPO_PUBLIC_FIREBASE_API_KEY &&
+      process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID &&
+      process.env.EXPO_PUBLIC_FIREBASE_APP_ID
   );
 }
 
 /** Indica si las credenciales de RENAPER están disponibles. */
 export function hasRenaperConfig(): boolean {
-  return read('EXPO_PUBLIC_RENAPER_ENABLED') === 'true' && Boolean(read('EXPO_PUBLIC_RENAPER_API_KEY'));
+  return (
+    process.env.EXPO_PUBLIC_RENAPER_ENABLED === 'true' &&
+    Boolean(process.env.EXPO_PUBLIC_RENAPER_API_KEY)
+  );
 }
 
 export function loadEnv(): AtentiEnv {
-  const parsed = Number(read('EXPO_PUBLIC_RATE_LIMIT_DAILY'));
+  const parsed = Number(process.env.EXPO_PUBLIC_RATE_LIMIT_DAILY);
   const rateLimitDaily =
     Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : DEFAULT_RATE_LIMIT_DAILY;
 
   return {
     firebase: {
-      apiKey: read('EXPO_PUBLIC_FIREBASE_API_KEY'),
-      authDomain: read('EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN'),
-      projectId: read('EXPO_PUBLIC_FIREBASE_PROJECT_ID'),
-      storageBucket: read('EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET'),
-      messagingSenderId: read('EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
-      appId: read('EXPO_PUBLIC_FIREBASE_APP_ID'),
+      apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
+      authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+      projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
+      storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+      messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+      appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
     },
-    googleMapsApiKey: read('EXPO_PUBLIC_GOOGLE_MAPS_API_KEY'),
-    googleWebClientId: read('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID'),
+    googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    googleMapsWebApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_API_KEY || '',
+    googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     rateLimitDaily,
     renaper: {
-      enabled: read('EXPO_PUBLIC_RENAPER_ENABLED') === 'true',
-      endpoint: read('EXPO_PUBLIC_RENAPER_ENDPOINT'),
-      apiKey: read('EXPO_PUBLIC_RENAPER_API_KEY'),
+      enabled: process.env.EXPO_PUBLIC_RENAPER_ENABLED === 'true',
+      endpoint: process.env.EXPO_PUBLIC_RENAPER_ENDPOINT || '',
+      apiKey: process.env.EXPO_PUBLIC_RENAPER_API_KEY || '',
     },
-    cloudFunctionsBaseUrl: read('EXPO_PUBLIC_CLOUD_FUNCTIONS_BASE_URL'),
-    functionsRegion: read('EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION') || 'us-central1',
-    adminEmails: read('EXPO_PUBLIC_ADMIN_EMAILS')
+    cloudFunctionsBaseUrl: process.env.EXPO_PUBLIC_CLOUD_FUNCTIONS_BASE_URL || '',
+    functionsRegion: process.env.EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION || 'us-central1',
+    adminEmails: (process.env.EXPO_PUBLIC_ADMIN_EMAILS || '')
       .split(',')
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean),
-    sentryDsn: read('EXPO_PUBLIC_SENTRY_DSN'),
+    sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
   };
 }
 
