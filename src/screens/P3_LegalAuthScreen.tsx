@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -17,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 type Props = NativeStackScreenProps<RootStackParamList, 'P3_LegalAuth'>;
 
 export const P3_LegalAuthScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
   const { loginWithGoogle } = useAuth();
   const [acceptedDDJJ, setAcceptedDDJJ] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,7 @@ export const P3_LegalAuthScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <View style={[styles.container, centro]}>
         {/* Cabecera con marca Atenti */}
         <View style={styles.header}>
           <Text style={styles.brandTitle}>Atenti</Text>

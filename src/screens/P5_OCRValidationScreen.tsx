@@ -22,6 +22,7 @@ import { MAX_EVIDENCIAS, validarArchivo, formatearBytes } from '../services/evid
 import { subirEvidencia } from '../services/storageService';
 import { DraftsListModal } from '../components/DraftsListModal';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { useCentro } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P5_OCRValidation'>;
 
@@ -45,6 +46,11 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
   const [showDraftsListModal, setShowDraftsListModal] = useState(false);
 
   const evidenciasLleno = evidences.length >= MAX_EVIDENCIAS;
+
+  // Columna centrada para vista de computadora (>=768px). `centroBarra` resta
+  // 32px porque la barra superior y el pie ya tienen 16px de padding lateral.
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
 
   const handleUpload = async (type: 'chat_screenshot' | 'bank_receipt') => {
     if (evidenciasLleno) {
@@ -225,14 +231,16 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-        <Text style={styles.navTitle}>Agregar evidencia</Text>
-        <View style={{ width: 36 }} />
+        <View style={[styles.navBarInner, centroBarra]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={styles.navTitle}>Agregar evidencia</Text>
+          <View style={{ width: 36 }} />
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, centro]}>
         {/* Switch para prueba manual de Modo Offline (P7) */}
         <View style={styles.offlineBar}>
           <Text style={styles.offlineBarText}>
@@ -327,26 +335,28 @@ export const P5_OCRValidationScreen: React.FC<Props> = ({ navigation }) => {
 
       {/* Pie de pantalla: El mismo panel inferior pero ahora marcando "Credibilidad: 80%" y el botón principal oscuro "Enviar Reporte" */}
       <View style={styles.fixedFooter}>
-        <View style={styles.credibilityBox}>
-          <Text style={styles.credibilityLabel}>Credibilidad:</Text>
-          <Text style={styles.credibilityPercent}>{credibilityScore}%</Text>
-        </View>
+        <View style={[styles.fixedFooterInner, centroBarra]}>
+          <View style={styles.credibilityBox}>
+            <Text style={styles.credibilityLabel}>Credibilidad:</Text>
+            <Text style={styles.credibilityPercent}>{credibilityScore}%</Text>
+          </View>
 
-        <TouchableOpacity
-          style={[
-            styles.submitMainBtn,
-            (submitting || evidences.length === 0) && styles.btnDisabled,
-          ]}
-          activeOpacity={0.88}
-          onPress={handleSendReport}
-          disabled={submitting || evidences.length === 0}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.submitMainBtnText}>Enviar Reporte</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.submitMainBtn,
+              (submitting || evidences.length === 0) && styles.btnDisabled,
+            ]}
+            activeOpacity={0.88}
+            onPress={handleSendReport}
+            disabled={submitting || evidences.length === 0}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.submitMainBtnText}>Enviar Reporte</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <BottomNavBar activeTab="report" />
@@ -411,7 +421,9 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    // El contenido queda en una sola caja (navBarInner) centrada en pantalla
+    // ancha; en celular esa caja ocupa el 100% y no cambia el aspecto.
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -419,6 +431,12 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     padding: 4,
+  },
+  // Contenido de la barra superior centrado en pantalla ancha
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   navTitle: {
     fontSize: 16,
@@ -551,13 +569,21 @@ const styles = StyleSheet.create({
   // Pie de pantalla: El mismo panel inferior pero ahora marcando "Credibilidad: 80%" y el botón principal oscuro "Enviar Reporte"
   fixedFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    // El contenido queda en una sola caja (fixedFooterInner) centrada en
+    // pantalla ancha; en celular esa caja ocupa el 100% sin cambio visual.
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+  },
+  // Contenido del pie centrado en pantalla ancha
+  fixedFooterInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   credibilityBox: {
     flexDirection: 'row',

@@ -25,7 +25,7 @@ import {
   componerDireccion,
 } from '../services/locationService';
 import { filtrarTexto, contieneLenguajeOfensivo } from '../services/lexiconFilter';
-import { useResponsive } from '../hooks/useResponsive';
+import { useCentro, useResponsive } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P4_CreateReport'>;
 
@@ -52,6 +52,10 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [identifierDropdownOpen, setIdentifierDropdownOpen] = useState(false);
   const { mapPickerHeight } = useResponsive();
+  // Columna centrada para vista de computadora (>=768px). `centroBarra` resta
+  // 32px porque la barra superior y el pie ya tienen 16px de padding lateral.
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const [categorias, setCategorias] = useState<CategoriaTipo[]>(CATEGORIAS.map((c) => ({ ...c })));
   const [filtroAplicado, setFiltroAplicado] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
@@ -185,22 +189,27 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#0F172A" />
-        </TouchableOpacity>
-        <Text style={styles.navTitle}>Crear reporte</Text>
-        <TouchableOpacity
-          onPress={async () => {
-            await saveCurrentDraft();
-            Alert.alert('Borrador Guardado', 'Se guardó en el almacenamiento local.');
-          }}
-          style={styles.saveDraftBtn}
-        >
-          <Ionicons name="save-outline" size={18} color="#0F172A" />
-        </TouchableOpacity>
+        <View style={[styles.navBarInner, centroBarra]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={styles.navTitle}>Crear reporte</Text>
+          <TouchableOpacity
+            onPress={async () => {
+              await saveCurrentDraft();
+              Alert.alert('Borrador Guardado', 'Se guardó en el almacenamiento local.');
+            }}
+            style={styles.saveDraftBtn}
+          >
+            <Ionicons name="save-outline" size={18} color="#0F172A" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, centro]}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Cuerpo: Dos cajas desplegables (Categoría, Tipo de Identificador) */}
         
         {/* Caja desplegable 1: Categoría */}
@@ -472,20 +481,22 @@ export const P4_CreateReportScreen: React.FC<Props> = ({ route, navigation }) =>
 
       {/* Pie de pantalla (Fijo): Panel pegado abajo que diga "Credibilidad: 20%" con botón secundario "Siguiente" */}
       <View style={styles.fixedFooter}>
-        <View style={styles.credibilityBox}>
-          <Text style={styles.credibilityLabel}>Credibilidad:</Text>
-          <Text style={styles.credibilityPercent}>{credibilityScore}%</Text>
-        </View>
+        <View style={[styles.fixedFooterInner, centroBarra]}>
+          <View style={styles.credibilityBox}>
+            <Text style={styles.credibilityLabel}>Credibilidad:</Text>
+            <Text style={styles.credibilityPercent}>{credibilityScore}%</Text>
+          </View>
 
-        <TouchableOpacity
-          style={[styles.nextSecondaryBtn, !relatoValido && styles.btnDisabled]}
-          activeOpacity={0.88}
-          onPress={handleNext}
-          disabled={!relatoValido}
-        >
-          <Text style={styles.nextSecondaryBtnText}>Siguiente</Text>
-          <Ionicons name="arrow-forward" size={16} color="#000000" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.nextSecondaryBtn, !relatoValido && styles.btnDisabled]}
+            activeOpacity={0.88}
+            onPress={handleNext}
+            disabled={!relatoValido}
+          >
+            <Text style={styles.nextSecondaryBtnText}>Siguiente</Text>
+            <Ionicons name="arrow-forward" size={16} color="#000000" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <BottomNavBar activeTab="report" />
@@ -513,11 +524,19 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    // El contenido queda en una sola caja (navBarInner) centrada en pantalla
+    // ancha; en celular esa caja ocupa el 100% y no cambia el aspecto.
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  // Contenido de la barra superior centrado en pantalla ancha
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: {
     padding: 4,
@@ -774,13 +793,21 @@ const styles = StyleSheet.create({
   // Pie de pantalla (Fijo)
   fixedFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    // El contenido queda en una sola caja (fixedFooterInner) centrada en
+    // pantalla ancha; en celular esa caja ocupa el 100% sin cambio visual.
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+  },
+  // Contenido del pie centrado en pantalla ancha
+  fixedFooterInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   credibilityBox: {
     flexDirection: 'row',

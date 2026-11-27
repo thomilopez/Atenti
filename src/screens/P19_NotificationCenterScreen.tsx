@@ -8,6 +8,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -22,6 +23,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'P19_NotificationCenter'>;
 
 export const P19_NotificationCenterScreen: React.FC<Props> = ({ navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { user } = useAuth();
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +61,7 @@ export const P19_NotificationCenterScreen: React.FC<Props> = ({ navigation }) =>
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
@@ -68,9 +72,10 @@ export const P19_NotificationCenterScreen: React.FC<Props> = ({ navigation }) =>
         >
           <Ionicons name="options-outline" size={22} color="#0F172A" />
         </TouchableOpacity>
+              </View>
       </View>
 
-      <View style={styles.toolbar}>
+      <View style={[styles.toolbar, centro]}>
         <Text style={styles.count}>{noLeidas} sin leer</Text>
         {noLeidas > 0 && (
           <TouchableOpacity onPress={handleLeerTodas}>
@@ -90,7 +95,7 @@ export const P19_NotificationCenterScreen: React.FC<Props> = ({ navigation }) =>
         <FlatList
           data={notificaciones}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, centro]}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.card, !item.leida && styles.cardUnread]}
@@ -121,11 +126,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: { padding: 4 },
   navTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },

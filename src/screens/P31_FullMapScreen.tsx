@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IncidentReport, RootStackParamList } from '../types';
@@ -19,6 +20,7 @@ import { BottomNavBar } from '../components/BottomNavBar';
 type Props = NativeStackScreenProps<RootStackParamList, 'P31_FullMap'>;
 
 export const P31_FullMapScreen: React.FC<Props> = ({ navigation }) => {
+  const centroBarra = useCentro(32);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -47,11 +49,13 @@ export const P31_FullMapScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Mapa de denuncias</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
       <View style={styles.mapContainer}>
@@ -116,11 +120,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: { padding: 4 },
   navTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },

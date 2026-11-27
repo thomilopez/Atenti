@@ -8,6 +8,7 @@ import {
   Switch,
   ActivityIndicator,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -22,6 +23,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'P26_NotificationPreferences'>;
 
 export const P26_NotificationPreferencesScreen: React.FC<Props> = ({ navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { user } = useAuth();
   const [prefs, setPrefs] = useState<PreferenciasNotificacion>(PREFERENCIAS_DEFAULT);
   const [loading, setLoading] = useState(true);
@@ -48,17 +51,19 @@ export const P26_NotificationPreferencesScreen: React.FC<Props> = ({ navigation 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Preferencias</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 24 }} color="#0F172A" />
       ) : (
-        <View style={styles.content}>
+        <View style={[styles.content, centro]}>
           <Fila
             titulo="Cambios de estado"
             descripcion="Publicada, en disputa o resuelta."
@@ -114,11 +119,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: { padding: 4 },
   navTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },

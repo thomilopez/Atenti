@@ -11,6 +11,7 @@ import {
   Modal,
   Switch,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -23,6 +24,8 @@ import { BottomNavBar } from '../components/BottomNavBar';
 type Props = NativeStackScreenProps<RootStackParamList, 'P20_Settings'>;
 
 export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { user, identityFactors, logout, isAdmin } = useAuth();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [motivo, setMotivo] = useState('');
@@ -76,14 +79,16 @@ export const P20_SettingsScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Ajustes</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, centro]}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cuenta</Text>
           <View style={styles.row}>
@@ -249,11 +254,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: {
     padding: 4,

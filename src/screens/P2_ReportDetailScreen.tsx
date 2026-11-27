@@ -23,7 +23,7 @@ import { BottomNavBar } from '../components/BottomNavBar';
 import { toPublicProjection, approximateLocation } from '../services/masking';
 import { obtenerHistorialScore, EventoScore } from '../services/scoreHistory';
 import { ScoreBreakdown } from '../components/ScoreBreakdown';
-import { useResponsive } from '../hooks/useResponsive';
+import { useCentro, useResponsive } from '../hooks/useResponsive';
 import {
   exportarFichaPDF,
   exportarCSV,
@@ -34,6 +34,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'P2_ReportDetail'>;
 
 export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { incident } = route.params;
   const { isAuthenticated } = useAuth();
   const { setIdentifierType, setIdentifierValue, setCategory } = useReportFlow();
@@ -121,6 +123,7 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
     <SafeAreaView style={styles.safeArea}>
       {/* Barra de navegación superior */}
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
@@ -131,9 +134,10 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
         >
           <Ionicons name="share-outline" size={20} color="#0F172A" />
         </TouchableOpacity>
+              </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, centro]}>
         {/* Banner de imagen superior como en el mockup */}
         <View style={styles.heroBanner}>
           <Image
@@ -254,20 +258,22 @@ export const P2_ReportDetailScreen: React.FC<Props> = ({ route, navigation }) =>
 
       {/* Pie: Botón ancho "Denunciar mismo objetivo" */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.impugnarBtn}
-          activeOpacity={0.88}
-          onPress={() => navigation.navigate('P21_Impugnacion', { incident })}
-        >
-          <Text style={styles.impugnarBtnText}>Impugnar esta denuncia</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.denounceBtn}
-          activeOpacity={0.88}
-          onPress={handleDenounceSameTarget}
-        >
-          <Text style={styles.denounceBtnText}>Denunciar mismo objetivo</Text>
-        </TouchableOpacity>
+        <View style={[styles.footerInner, centroBarra]}>
+          <TouchableOpacity
+            style={styles.impugnarBtn}
+            activeOpacity={0.88}
+            onPress={() => navigation.navigate('P21_Impugnacion', { incident })}
+          >
+            <Text style={styles.impugnarBtnText}>Impugnar esta denuncia</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.denounceBtn}
+            activeOpacity={0.88}
+            onPress={handleDenounceSameTarget}
+          >
+            <Text style={styles.denounceBtnText}>Denunciar mismo objetivo</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <BottomNavBar activeTab="home" />
@@ -332,11 +338,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: {
     padding: 4,
@@ -500,7 +511,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontStyle: 'italic',
   },
+  footerInner: {
+    width: '100%',
+    gap: 8,
+  },
   footer: {
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',

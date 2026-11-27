@@ -12,6 +12,7 @@ import {
   Share,
   Linking,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -28,6 +29,8 @@ import {
 type Props = NativeStackScreenProps<RootStackParamList, 'P28_StoryDetail'>;
 
 export const P28_StoryDetailScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { relato } = route.params;
   const { user } = useAuth();
   const uid = user?.uid ?? 'anonimo';
@@ -97,7 +100,7 @@ export const P28_StoryDetailScreen: React.FC<Props> = ({ route, navigation }) =>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, centro]}>
         <View style={styles.headerCard}>
           <View style={styles.catRow}>
             <Ionicons name={(cat?.icono ?? 'pricetag-outline') as any} size={16} color={cat?.color ?? '#0F172A'} />
@@ -173,7 +176,7 @@ export const P28_StoryDetailScreen: React.FC<Props> = ({ route, navigation }) =>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.reportBtn} onPress={() => setReportModal(true)}>
+      <TouchableOpacity style={[styles.reportBtn, centro]} onPress={() => setReportModal(true)}>
         <Ionicons name="flag-outline" size={14} color="#64748B" />
         <Text style={styles.reportText}>Reportar contenido</Text>
       </TouchableOpacity>
@@ -208,11 +211,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: { padding: 4 },
   navTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
@@ -256,12 +264,20 @@ const styles = StyleSheet.create({
   idChipText: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
   link: { fontSize: 12, color: '#2563EB', marginBottom: 4 },
   footer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+  },
+  footerInner: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
   },
   followBtn: {
     flexDirection: 'row',

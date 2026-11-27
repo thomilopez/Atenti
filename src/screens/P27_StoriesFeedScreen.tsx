@@ -17,6 +17,7 @@ import { listarRelatos } from '../services/storyService';
 import { listarCategoriasActivas } from '../services/categoryService';
 import { CategoriaTipo } from '../services/normalize';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { useCentro } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P27_StoriesFeed'>;
 
@@ -26,6 +27,12 @@ export const P27_StoriesFeedScreen: React.FC<Props> = ({ navigation }) => {
   const [query, setQuery] = useState('');
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>('Todas');
   const [loading, setLoading] = useState(true);
+
+  // Columna centrada para vista de computadora (>=768px).
+  // `centroBarra` compensa los 16px laterales que ya consumen la barra y el
+  // disclaimer, para que su contenido quede alineado con las tarjetas.
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -60,46 +67,53 @@ export const P27_StoriesFeedScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
-        <Text style={styles.navTitle}>Historias de estafas</Text>
-        <TouchableOpacity style={styles.createBtn} onPress={() => navigation.navigate('P29_CreateStory')}>
-          <Ionicons name="add" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View style={[styles.navBarInner, centroBarra]}>
+          <Text style={styles.navTitle}>Historias de estafas</Text>
+          <TouchableOpacity style={styles.createBtn} onPress={() => navigation.navigate('P29_CreateStory')}>
+            <Ionicons name="add" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.disclaimer}>
-        <Ionicons name="information-circle-outline" size={16} color="#92400E" />
-        <Text style={styles.disclaimerText}>
-          Relatos compartidos por la comunidad. No son acusaciones formales.{' '}
-          <Text
-            style={styles.disclaimerLink}
-            onPress={() => navigation.navigate('P33_CommunityGuidelines')}
-          >
-            Ver normas
+        <View style={[styles.disclaimerInner, centroBarra]}>
+          <Ionicons name="information-circle-outline" size={16} color="#92400E" />
+          <Text style={styles.disclaimerText}>
+            Relatos compartidos por la comunidad. No son acusaciones formales.{' '}
+            <Text
+              style={styles.disclaimerLink}
+              onPress={() => navigation.navigate('P33_CommunityGuidelines')}
+            >
+              Ver normas
+            </Text>
           </Text>
-        </Text>
+        </View>
       </View>
 
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={16} color="#64748B" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por título o señal de alerta"
-          placeholderTextColor="#94A3B8"
-          value={query}
-          onChangeText={setQuery}
-        />
-      </View>
-
-      <View style={styles.chipsRow}>
-        <Chip label="Todas" active={categoriaFiltro === 'Todas'} onPress={() => setCategoriaFiltro('Todas')} />
-        {categorias.slice(0, 8).map((c) => (
-          <Chip
-            key={c.id}
-            label={c.nombre}
-            active={categoriaFiltro === c.nombre}
-            onPress={() => setCategoriaFiltro(c.nombre)}
+      {/* Buscador y filtros dentro de la columna centrada (pantalla ancha) */}
+      <View style={centro}>
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={16} color="#64748B" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por título o señal de alerta"
+            placeholderTextColor="#94A3B8"
+            value={query}
+            onChangeText={setQuery}
           />
-        ))}
+        </View>
+
+        <View style={styles.chipsRow}>
+          <Chip label="Todas" active={categoriaFiltro === 'Todas'} onPress={() => setCategoriaFiltro('Todas')} />
+          {categorias.slice(0, 8).map((c) => (
+            <Chip
+              key={c.id}
+              label={c.nombre}
+              active={categoriaFiltro === c.nombre}
+              onPress={() => setCategoriaFiltro(c.nombre)}
+            />
+          ))}
+        </View>
       </View>
 
       {loading ? (
@@ -108,7 +122,7 @@ export const P27_StoriesFeedScreen: React.FC<Props> = ({ navigation }) => {
         <FlatList
           data={visibles}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, centro]}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="newspaper-outline" size={44} color="#CBD5E1" />
@@ -165,11 +179,19 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    // El contenido queda en una sola caja (navBarInner) centrada en pantalla
+    // ancha; en celular esa caja ocupa el 100% y no cambia el aspecto.
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  // Contenido de la barra superior centrado en pantalla ancha
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   navTitle: { fontSize: 17, fontWeight: '900', color: '#0F172A' },
   createBtn: {
@@ -182,10 +204,18 @@ const styles = StyleSheet.create({
   },
   disclaimer: {
     flexDirection: 'row',
-    gap: 8,
+    // El contenido queda en una sola caja (disclaimerInner) centrada en pantalla
+    // ancha; el fondo amarillo sigue a todo el ancho de la ventana.
+    justifyContent: 'center',
     backgroundColor: '#FEF3C7',
     paddingHorizontal: 16,
     paddingVertical: 8,
+  },
+  // Contenido del disclaimer centrado en pantalla ancha (el fondo sigue a todo
+  // el ancho de la ventana)
+  disclaimerInner: {
+    flexDirection: 'row',
+    gap: 8,
   },
   disclaimerText: { flex: 1, fontSize: 11, color: '#92400E', lineHeight: 16 },
   disclaimerLink: { fontWeight: '800', textDecorationLine: 'underline' },
