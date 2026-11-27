@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -17,6 +18,7 @@ import { BottomNavBar } from '../components/BottomNavBar';
 type Props = NativeStackScreenProps<RootStackParamList, 'P8_Confirmation'>;
 
 export const P8_ConfirmationScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
   const { trackingCode, finalScore } = route.params;
   const { resetForm } = useReportFlow();
 
@@ -41,7 +43,7 @@ export const P8_ConfirmationScreen: React.FC<Props> = ({ route, navigation }) =>
         <Text style={styles.bannerText}>Reporte publicado con éxito</Text>
       </View>
 
-      <View style={styles.container}>
+      <View style={[styles.container, centro]}>
         {/* Cuerpo central: Un círculo grande con un tilde (Check) */}
         <View style={styles.centerBody}>
           <View style={styles.checkCircle}>

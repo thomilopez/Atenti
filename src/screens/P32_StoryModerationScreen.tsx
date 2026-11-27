@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,6 +22,8 @@ import { listarPendientes, aprobarRelato, ocultarRelato } from '../services/stor
 type Props = NativeStackScreenProps<RootStackParamList, 'P32_StoryModeration'>;
 
 export const P32_StoryModerationScreen: React.FC<Props> = ({ navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { user } = useAuth();
   const actorId = user?.uid ?? 'admin_demo';
   const [pendientes, setPendientes] = useState<Relato[]>([]);
@@ -60,14 +63,16 @@ export const P32_StoryModerationScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Moderar relatos</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, centro]}>
         {loading ? (
           <ActivityIndicator style={{ marginTop: 24 }} color="#0F172A" />
         ) : pendientes.length === 0 ? (
@@ -137,11 +142,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: { padding: 4 },
   navTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },

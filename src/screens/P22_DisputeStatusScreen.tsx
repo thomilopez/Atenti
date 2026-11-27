@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -32,6 +33,8 @@ const ETIQUETA: Record<string, string> = {
 };
 
 export const P22_DisputeStatusScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { denunciaId } = route.params;
   const [impugnacion, setImpugnacion] = useState<Impugnacion | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,14 +82,16 @@ export const P22_DisputeStatusScreen: React.FC<Props> = ({ route, navigation }) 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Estado de la disputa</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, centro]}>
         {loading ? (
           <ActivityIndicator style={{ marginTop: 24 }} color="#0F172A" />
         ) : !impugnacion ? (
@@ -165,11 +170,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: { padding: 4 },
   navTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },

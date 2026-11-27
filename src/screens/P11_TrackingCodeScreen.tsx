@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   TextInput,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -18,6 +19,8 @@ import { VeracityBar } from '../components/VeracityBar';
 type Props = NativeStackScreenProps<RootStackParamList, 'P11_TrackingCode'>;
 
 export const P11_TrackingCodeScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const [codigo, setCodigo] = useState(route.params?.codigo ?? '');
   const [resultado, setResultado] = useState<ReturnType<typeof consultarAntecedentePublico>>(null);
   const [buscado, setBuscado] = useState(false);
@@ -35,14 +38,16 @@ export const P11_TrackingCodeScreen: React.FC<Props> = ({ route, navigation }) =
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Consultar estado</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
-      <View style={styles.container}>
+      <View style={[styles.container, centro]}>
         <Text style={styles.title}>Ingresá tu código de seguimiento</Text>
         <Text style={styles.subtitle}>
           Podés consultar el estado de un reporte sin iniciar sesión.
@@ -100,11 +105,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: {
     padding: 4,

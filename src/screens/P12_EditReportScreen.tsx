@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
@@ -22,6 +23,8 @@ import { BottomNavBar } from '../components/BottomNavBar';
 type Props = NativeStackScreenProps<RootStackParamList, 'P12_EditReport'>;
 
 export const P12_EditReportScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { incident } = route.params;
   const { user } = useAuth();
 
@@ -70,14 +73,16 @@ export const P12_EditReportScreen: React.FC<Props> = ({ route, navigation }) => 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Editar denuncia</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, centro]}>
         <View style={styles.infoCard}>
           <Text style={styles.infoCode}>{incident.trackingCode}</Text>
           <Text style={styles.infoTitle}>{incident.title}</Text>
@@ -166,11 +171,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: {
     padding: 4,

@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IncidentCategory, IncidentReport, Relato, RootStackParamList } from '../types';
@@ -28,6 +29,8 @@ const SCORES = [0, 40, 60, 75];
 const POR_PAGINA = 5;
 
 export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const [query, setQuery] = useState(route.params?.initialQuery ?? '');
   const [filterType, setFilterType] = useState<IdentifierType | 'Todas'>(
     route.params?.initialType ?? 'Todas'
@@ -96,29 +99,33 @@ export const P13_SearchResultsScreen: React.FC<Props> = ({ route, navigation }) 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Resultados</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color="#64748B" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Alias, CBU, teléfono o local"
-          placeholderTextColor="#94A3B8"
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-        />
+      <View style={centro}>
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={18} color="#64748B" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Alias, CBU, teléfono o local"
+            placeholderTextColor="#94A3B8"
+            value={query}
+            onChangeText={setQuery}
+            autoCapitalize="none"
+          />
+        </View>
       </View>
 
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, centro]}
         onEndReached={cargarMas}
         onEndReachedThreshold={0.4}
         ListHeaderComponent={
@@ -253,11 +260,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: {
     padding: 4,

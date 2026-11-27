@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useCentro } from '../hooks/useResponsive';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IdentifierType, IdentificadorRelato, RootStackParamList } from '../types';
@@ -29,6 +30,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'P29_CreateStory'>;
 const IDENTIFIER_TYPES: IdentifierType[] = ['Alias', 'CBU', 'CUIT', 'Tel', 'Local'];
 
 export const P29_CreateStoryScreen: React.FC<Props> = ({ route, navigation }) => {
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
   const { user } = useAuth();
   const uid = user?.uid ?? 'anonimo';
 
@@ -142,14 +145,16 @@ export const P29_CreateStoryScreen: React.FC<Props> = ({ route, navigation }) =>
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.navBar}>
+        <View style={[styles.navBarInner, centroBarra]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.navTitle}>Contar una forma de estafar</Text>
         <View style={{ width: 36 }} />
+              </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, centro]} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Título</Text>
         <TextInput
           style={styles.input}
@@ -319,11 +324,16 @@ const styles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  navBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: { padding: 4 },
   navTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },

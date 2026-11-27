@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { VeracityBar } from '../components/VeracityBar';
 import { ScoreBreakdown } from '../components/ScoreBreakdown';
 import { BottomNavBar } from '../components/BottomNavBar';
+import { useCentro } from '../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'P9_CredibilityPanel'>;
 
@@ -45,6 +46,11 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
   const identityScore = calculateMyIdentityScore();
   // Score total simulado acumulado con evidencias
   const totalCredibility = Math.min(100, identityScore + 45 + 15);
+
+  // Columna centrada para vista de computadora (>=768px). `centroBarra` resta
+  // 32px porque la cabecera ya tiene 16px de padding lateral.
+  const centro = useCentro();
+  const centroBarra = useCentro(32);
 
   const identityBreakdown: CredibilityBreakdown = {
     identityScore,
@@ -81,19 +87,21 @@ export const P9_CredibilityPanelScreen: React.FC<Props> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       {/* Cabecera: Credibilidad */}
       <View style={styles.topHeader}>
-        <View style={{ width: 36 }} />
-        <View style={styles.credibilityPill}>
-          <Text style={styles.credibilityPillText}>Credibilidad</Text>
+        <View style={[styles.topHeaderInner, centroBarra]}>
+          <View style={{ width: 36 }} />
+          <View style={styles.credibilityPill}>
+            <Text style={styles.credibilityPillText}>Credibilidad</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('P20_Settings')}
+            style={styles.settingsBtn}
+          >
+            <Ionicons name="settings-outline" size={22} color="#0F172A" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('P20_Settings')}
-          style={styles.settingsBtn}
-        >
-          <Ionicons name="settings-outline" size={22} color="#0F172A" />
-        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, centro]}>
         {/* Cuerpo: Una lista de tres ítems */}
         <View style={styles.checklistContainer}>
           {/* Ítem 1: "Cuenta Google" (con tilde) */}
@@ -325,12 +333,20 @@ const styles = StyleSheet.create({
   },
   topHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    // El contenido queda en una sola caja (topHeaderInner) centrada en pantalla
+    // ancha; en celular esa caja ocupa el 100% y no cambia el aspecto.
+    justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  // Contenido de la cabecera centrado en pantalla ancha
+  topHeaderInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   settingsBtn: {
     padding: 4,
